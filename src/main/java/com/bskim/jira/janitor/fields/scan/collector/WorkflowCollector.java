@@ -338,4 +338,9 @@ public class WorkflowCollector implements ReferenceCollector {
         }
         return byWorkflow;
     }
+
+    @Override
+    public boolean isEssential() {
+        return false;
+    }
 }

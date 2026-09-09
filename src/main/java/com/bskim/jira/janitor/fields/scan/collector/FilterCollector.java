@@ -181,4 +181,9 @@ public class FilterCollector implements ReferenceCollector {
         String flat = jql.replaceAll("\\s+", " ").trim();
         return flat.length() <= 120 ? flat : flat.substring(0, 117) + "...";
     }
+
+    @Override
+    public boolean isEssential() {
+        return false;
+    }
 }

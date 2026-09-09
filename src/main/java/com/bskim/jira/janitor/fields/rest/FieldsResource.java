@@ -52,7 +52,6 @@ public class FieldsResource {
         response.primaryMetric = JanitorI18n.text("janitor.fields.metric.note");
         response.labels.put("values", JanitorI18n.text("janitor.fields.inject.values"));
         response.labels.put("link", JanitorI18n.text("janitor.fields.inject.link"));
-        response.labels.put("unavailable", JanitorI18n.text("janitor.fields.unavailable"));
         response.labels.put("locked", JanitorI18n.text("janitor.fields.lockedShort"));
         if (result != null) {
             for (FieldUsage field : result.getFields()) {
@@ -131,7 +130,7 @@ public class FieldsResource {
         StringBuilder csv = new StringBuilder();
         // Excel이 UTF-8을 알아보게 BOM을 붙인다. 사내에서 대부분 Excel로 연다.
         csv.append('﻿');
-        csv.append("status,name,fieldId,numericId,type,typeAvailable,locked,issuesWithValue,valueRows,valueCountUnavailable,")
+        csv.append("status,name,fieldId,numericId,type,typeAvailable,locked,issuesWithValue,valueRows,")
                 .append("lastValueChange,lastValueChangeAmbiguous,duplicateName,")
                 .append("managed,screens,fieldConfigs,contexts,workflows,filters,")
                 .append("permissionSchemes,notificationSchemes,issueSecuritySchemes,gadgets,")
@@ -148,7 +147,6 @@ public class FieldsResource {
                     .append(row.locked).append(',')
                     .append(row.issuesWithValue).append(',')
                     .append(row.valueRows).append(',')
-                    .append(row.valueCountUnavailable).append(',')
                     .append(quote(row.lastValueChange)).append(',')
                     .append(row.lastValueChangeAmbiguous).append(',')
                     .append(row.duplicateName).append(',')
@@ -208,15 +206,30 @@ public class FieldsResource {
         }
     }
 
-    private static String quote(Object value) {
+    /**
+     * CSV 한 칸. 인젝션을 막고 큰따옴표를 이스케이프한다.
+     *
+     * <p>{@code = + - @} 뿐 아니라 <b>탭(0x09)과 CR(0x0D)로 시작하는 값도</b>
+     * Excel / LibreOffice 가 수식으로 해석한다. 필드 이름은 관리자만 만들지만
+     * 필터 이름은 아무 사용자나 만들고 그 이름이 CSV에 들어간다.
+     */
+    static String quote(Object value) {
         if (value == null) {
             return "";
         }
         String text = String.valueOf(value);
-        // CSV 인젝션 방지: =,+,-,@ 로 시작하는 값은 Excel이 수식으로 해석한다.
-        if (text.startsWith("=") || text.startsWith("+") || text.startsWith("-") || text.startsWith("@")) {
+        if (startsWithFormulaTrigger(text)) {
             text = "'" + text;
         }
         return "\"" + text.replace("\"", "\"\"") + "\"";
+    }
+
+    private static boolean startsWithFormulaTrigger(String text) {
+        if (text.isEmpty()) {
+            return false;
+        }
+        char first = text.charAt(0);
+        return first == '=' || first == '+' || first == '-' || first == '@'
+                || first == '\t' || first == '\r';
     }
 }

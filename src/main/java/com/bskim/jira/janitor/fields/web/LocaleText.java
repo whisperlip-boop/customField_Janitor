@@ -48,10 +48,24 @@ public final class LocaleText {
 
     /** 이 언어로 문구를 얻는다. 실패하면 키를 그대로 낸다 — 빈 화면보다 낫다. */
     public String text(String key) {
+        return i18n() == null ? key : i18n().getText(key);
+    }
+
+    /**
+     * 인자를 넣는 문구. {@code {0}} 자리에 들어간다.
+     *
+     * <p>이 오버로드가 없으면 Velocity가 2-arg 호출의 메서드를 찾지 못해
+     * {@code $action.text("key", $arg)} 를 <b>문자열 그대로</b> 출력한다.
+     */
+    public String text(String key, Object arg) {
+        return i18n() == null ? key : i18n().getText(key, arg);
+    }
+
+    private I18nHelper i18n() {
         if (i18n == null) {
             i18n = resolve(isKorean() ? Locale.KOREAN : Locale.ENGLISH);
         }
-        return i18n == null ? key : i18n.getText(key);
+        return i18n;
     }
 
     /** 지금 보고 있지 않은 쪽의 언어 코드. 토글 링크에 쓴다. */

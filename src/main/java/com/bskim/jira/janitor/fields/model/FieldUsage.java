@@ -27,7 +27,6 @@ public final class FieldUsage {
     private Date lastValueChange;
     private boolean lastValueChangeAmbiguous;
     private boolean duplicateName;
-    private boolean valueCountUnavailable;
     private boolean typeAvailable = true;
 
     private final List<Reference> references = new ArrayList<Reference>();
@@ -114,15 +113,6 @@ public final class FieldUsage {
         this.duplicateName = duplicateName;
     }
 
-    /** 값 집계가 실패했다. 0으로 오해하면 안 되므로 UI에 "확인 불가"로 낸다(함정 7). */
-    public boolean isValueCountUnavailable() {
-        return valueCountUnavailable;
-    }
-
-    public void setValueCountUnavailable(boolean valueCountUnavailable) {
-        this.valueCountUnavailable = valueCountUnavailable;
-    }
-
     /**
      * 이 필드의 타입을 제공하는 앱이 살아 있는가.
      *
@@ -138,7 +128,21 @@ public final class FieldUsage {
         this.typeAvailable = typeAvailable;
     }
 
+    /**
+     * 참조를 붙인다. <b>같은 참조는 두 번 세지 않는다</b>({@link Reference#equals}).
+     *
+     * <p>한 대상이 같은 필드를 여러 자리에서 가리키면(2차원 통계 가젯의 x/y 축,
+     * 워크플로 한 디스크립터의 여러 arg) 같은 참조가 2건으로 세지고, 사용 증거로
+     * 세는 종류에서는 [미사용]이 [방치]로 뒤집힌다. 세는 쪽마다 막지 않고 들어오는
+     * 입구 한 곳에서 막는다.
+     *
+     * <p>{@code List} 를 유지하는 이유는 순서다 — 상세 화면은 수집한 순서대로
+     * 보여주는 게 읽기 쉽다. 참조 수가 필드당 수십 건이라 선형 검색으로 충분하다.
+     */
     public void addReference(Reference reference) {
+        if (reference == null || references.contains(reference)) {
+            return;
+        }
         references.add(reference);
     }
 

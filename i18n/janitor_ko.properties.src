@@ -39,7 +39,6 @@ janitor.fields.column.totalReferences=참조 합계
 janitor.fields.duplicateName=같은 이름의 커스텀 필드가 또 있습니다. 항상 이름이 아니라 필드 ID로 판단하세요.
 janitor.fields.inject.values=값 {0}건
 janitor.fields.inject.link=사용처
-janitor.fields.unavailable=확인 불가
 janitor.fields.lockedShort=잠김
 janitor.fields.locked=앱이 잠근 필드입니다. Jira 자신도 이 필드의 삭제 메뉴를 숨기므로 이 화면에도 삭제 링크를 두지 않았습니다. 지우면 그 앱이 깨집니다 — 예를 들어 Sprint를 지우면 Jira Software 보드가 깨집니다. 값도 앱 자체 테이블에 있을 수 있어서 "값 있는 이슈 수"가 0으로 보일 수 있습니다.
 janitor.fields.typeUnavailableShort=타입 없음
@@ -183,8 +182,6 @@ janitor.help.badges.typeUnavailable.name=타입 없음 — 제공 앱이 비활�
 janitor.help.badges.typeUnavailable.body=이 필드의 타입을 제공하는 앱이 비활성이거나 삭제되었습니다. Jira는 이 상태의 필드를 커스텀 필드 목록에서 아예 숨기지만, 필드와 값은 DB에 그대로 남아 있습니다. 이 도구는 DB를 기준으로 목록을 만들기 때문에 그 필드들도 보여줍니다 — 앱을 지운 뒤 남은 잔해가 보통 정리 대상 1순위입니다. 다만 이 필드는 Jira API로 다룰 수 없어서 컨텍스트를 읽지 못하고, 앱을 다시 켜면 되살아납니다.
 janitor.help.badges.inaccurate.name=부정확 — 마지막 변경일을 믿을 수 없음
 janitor.help.badges.inaccurate.body=마지막 값 변경일 칸에 나옵니다. 이름이 중복된 필드라서 변경 이력이 다른 필드와 섞이는 경우입니다. 잘못된 날짜를 보여주는 대신 값을 비웠습니다.
-janitor.help.badges.unavailable.name=확인 불가 — 값 집계 실패
-janitor.help.badges.unavailable.body=값 있는 이슈 수 칸에 나옵니다. 집계 쿼리가 실패했다는 뜻입니다. 0으로 표시하면 "값이 없다"로 오해하고 지우게 되므로 일부러 숫자를 내지 않습니다. 실패 이유는 화면 아래 "확인 불가" 목록에 있습니다.
 
 # --- 4. 상세 화면 ---
 janitor.help.detail.title=상세 화면 (필드 사용처 — 필드명)
@@ -255,7 +252,7 @@ janitor.help.scan.csv.body=화면에 보이는 모든 컬럼에 권한·알림·
 janitor.help.scan.inject.title=커스텀 필드 관리 화면의 배지
 janitor.help.scan.inject.body=관리 > 이슈 > 커스텀 필드 화면의 각 행에도 상태 배지와 값 건수, 사용처 링크가 붙습니다. 필드를 보다가 궁금해진 자리에서 바로 넘어올 수 있게 한 것입니다. 스캔한 적이 없으면 아무것도 붙지 않습니다.
 janitor.help.scan.problems.title=확인 불가 목록
-janitor.help.scan.problems.body=목록 화면 맨 아래에 나옵니다. 스캔이 읽지 못한 항목입니다(예: JQL 파싱이 안 되는 깨진 필터). 여기에 올라온 것은 "참조 없음"이 아니라 "모름"입니다. 지울 후보에 있는 필드가 이 목록과 관련되어 있으면 후보에서 빼십시오.
+janitor.help.scan.problems.body=목록 화면 맨 아래에 나옵니다. 스캔이 읽지 못한 항목입니다(예: JQL 파싱이 안 되는 깨진 필터). 여기에 올라온 것은 "참조 없음"이 아니라 "모름"입니다. 지울 후보에 있는 필드가 이 목록과 관련되어 있으면 후보에서 빼십시오. 단 라벨 판정을 뒤집는 재료(값 집계, 잠긴 필드)가 실패하면 이 목록에 담지 않고 스캔 자체가 실패합니다 — 아래 항목을 보십시오.
 
 # --- 7. 한계 ---
 janitor.help.limits.title=이 도구가 보지 못하는 것
@@ -275,3 +272,12 @@ janitor.help.faq.q5=위험 라벨을 없애고 싶습니다.
 janitor.help.faq.a5=상세 화면에서 "동작이 깨짐" 배지가 붙은 항목을 찾아 링크를 눌러 그 참조를 제거하십시오. 워크플로라면 해당 전이의 조건·검증기·후처리 함수를, 스킴이라면 그 항목을 지우면 됩니다. 그 뒤 다시 스캔하면 라벨이 내려갑니다. 앱이 잠근 필드는 이 방법으로 내려가지 않고, 내려가게 만들어서도 안 됩니다.
 janitor.help.faq.q6=필드를 지웠는데 목록에 그대로 있습니다.
 janitor.help.faq.a6=목록은 마지막 스캔 결과입니다. "지금 스캔"을 다시 누르십시오.
+
+# 스캔 실패 (v1.0.1). 새로고침에도 남는다 — 이전 결과를 최신으로 오해하면 안 된다.
+janitor.fields.scanFailed.title=마지막 스캔이 실패했다
+janitor.fields.scanFailed.at=실패 시각:
+janitor.fields.scanFailed.stale=아래 표는 실패한 스캔이 아니라 그 이전 스캔의 결과다. 최신으로 보면 안 된다.
+
+# 스캔 실패 (v1.0.1)
+janitor.help.scan.failed.title=스캔이 실패했을 때
+janitor.help.scan.failed.body=라벨 판정에 직접 쓰이는 재료가 실패하면 부분 결과를 내지 않고 스캔 전체가 실패합니다. 값 집계와 잠긴 필드 조회가 그렇습니다. 이유는 그 실패가 라벨을 비우는 게 아니라 거꾸로 만들기 때문입니다 — 값을 못 읽으면 0으로 남아 [미사용], 즉 "삭제 안전"으로 표시되고 목록 맨 위에 옵니다. 스캔이 실패하면 이전 결과가 그대로 남고 화면 위에 빨간 실패 안내가 나옵니다. 그 안내는 새로고침해도 사라지지 않으며, 표가 이전 스캔 것이면 그 사실을 함께 알립니다.

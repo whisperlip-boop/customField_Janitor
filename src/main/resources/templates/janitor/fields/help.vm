@@ -246,13 +246,6 @@
             <div>$action.text("janitor.help.badges.inaccurate.body")</div>
         </td>
     </tr>
-    <tr>
-        <td><span style="color:#bf2600;font-weight:bold">$action.text("janitor.fields.unavailable")</span></td>
-        <td>
-            <div><strong>$action.text("janitor.help.badges.unavailable.name")</strong></div>
-            <div>$action.text("janitor.help.badges.unavailable.body")</div>
-        </td>
-    </tr>
     </tbody>
 </table>
 
@@ -355,6 +348,8 @@
     <dd>$action.text("janitor.help.scan.inject.body")</dd>
     <dt>$action.text("janitor.help.scan.problems.title")</dt>
     <dd>$action.text("janitor.help.scan.problems.body")</dd>
+    <dt>$action.text("janitor.help.scan.failed.title")</dt>
+    <dd>$action.text("janitor.help.scan.failed.body")</dd>
 </dl>
 
 ## 7. 한계

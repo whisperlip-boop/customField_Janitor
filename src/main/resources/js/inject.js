@@ -115,9 +115,7 @@
 
         var counts = document.createElement("span");
         counts.className = "janitor-inject-counts";
-        counts.textContent = usage.valueCountUnavailable
-            ? state.labels.unavailable
-            : format(state.labels.values, usage.issuesWithValue);
+        counts.textContent = format(state.labels.values, usage.issuesWithValue);
         box.appendChild(counts);
 
         var link = document.createElement("a");

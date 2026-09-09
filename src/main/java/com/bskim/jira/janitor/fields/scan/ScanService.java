@@ -60,6 +60,14 @@ public final class ScanService {
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicReference<ScanProgress> progress = new AtomicReference<ScanProgress>(ScanProgress.idle());
     private final AtomicReference<ScanResult> lastResult = new AtomicReference<ScanResult>();
+    /**
+     * 마지막 실패. 진행률({@link ScanProgress})은 다음 스캔이 시작되면 덮이고 화면을
+     * 새로 그리면 사라지므로, 실패 사실은 따로 붙잡아 둔다.
+     *
+     * <p>이게 없으면 두 번째 이후의 스캔이 실패했을 때 관리자가 <b>몇 주 전 스냅샷을
+     * 방금 스캔한 결과로 믿는다</b> — 화면에는 이전 스캔 시각만 있고 실패 흔적이 없다.
+     */
+    private final AtomicReference<ScanFailure> lastFailure = new AtomicReference<ScanFailure>();
 
     private ScanService() {
     }
@@ -85,12 +93,20 @@ public final class ScanService {
                 try {
                     ScanResult result = scan(startedAt);
                     lastResult.set(result);
+                    lastFailure.set(null);
                     progress.set(new ScanProgress(ScanProgress.State.DONE, ScanProgress.Stage.FINISHING,
                             startedAt, null));
-                } catch (RuntimeException e) {
+                } catch (Throwable e) {
+                    // RuntimeException이 아니라 Throwable을 잡는다. 이 플러그인은 8.13으로
+                    // 컴파일해 8.17.1에서 돌리므로, 그 가정이 깨질 때 나오는 예외가
+                    // NoSuchMethodError / NoClassDefFoundError / AbstractMethodError —
+                    // 전부 Error다. 가장 현실적인 실패 모드를 놓치면 진행률이 RUNNING에
+                    // 박히고 화면이 1.5초마다 영구 폴링한다(관리자는 이유를 못 본다).
                     log.error("커스텀 필드 사용처 스캔이 실패했다", e);
-                    progress.set(new ScanProgress(ScanProgress.State.FAILED, null, startedAt,
-                            e.getClass().getSimpleName() + ": " + e.getMessage()));
+                    String message = e.getClass().getSimpleName()
+                            + (e.getMessage() == null ? "" : ": " + e.getMessage());
+                    lastFailure.set(new ScanFailure(startedAt, new Date(), message));
+                    progress.set(new ScanProgress(ScanProgress.State.FAILED, null, startedAt, message));
                 } finally {
                     running.set(false);
                 }
@@ -114,6 +130,11 @@ public final class ScanService {
         return running.get();
     }
 
+    /** 마지막 스캔이 실패했으면 그 기록, 아니면 null. 성공하면 지워진다. */
+    public ScanFailure getLastFailure() {
+        return lastFailure.get();
+    }
+
     private ScanResult scan(Date startedAt) {
         JanitorDao dao = new JanitorDao();
 
@@ -128,15 +149,19 @@ public final class ScanService {
         stage(startedAt, ScanProgress.Stage.VALUES);
         applyValueCounts(context, dao);
 
-        // 3단계 이후: 설정 참조 수집. 한 수집기가 실패해도 나머지는 계속한다.
+        // 3단계 이후: 설정 참조 수집. 보조 수집기는 실패해도 나머지를 계속한다.
+        // 필수 수집기(isEssential)는 실패가 라벨을 뒤집으므로 스캔을 실패시킨다.
         for (ReferenceCollector collector : Collectors.all()) {
             stage(startedAt, collector.getStage());
             try {
                 collector.collect(context);
-            } catch (RuntimeException e) {
+            } catch (Throwable e) {
+                String stageName = collector.getStage().name().toLowerCase(java.util.Locale.ENGLISH);
+                if (collector.isEssential()) {
+                    throw new ScanFailedException("필수 수집 단계 " + stageName + " 실패", e);
+                }
                 log.warn("수집 단계 " + collector.getStage() + " 실패", e);
-                context.addProblem(collector.getStage().name().toLowerCase(java.util.Locale.ENGLISH),
-                        "-", e);
+                context.addProblem(stageName, "-", e);
             }
         }
 
@@ -176,7 +201,7 @@ public final class ScanService {
         List<CustomFieldRow> rows;
         try {
             rows = dao.getCustomFieldRows();
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
             log.warn("customfield 테이블을 읽지 못했다 — CustomFieldManager 목록만 쓴다", e);
             problems.add(new ScanProblem("fields", "customfield",
                     "필드 목록을 DB에서 읽지 못했다. 타입 제공 앱이 비활성인 필드는 목록에서 빠질 수 있다: "
@@ -217,9 +242,23 @@ public final class ScanService {
     /**
      * 값 집계와 마지막 변경일을 붙인다.
      *
-     * <p>둘은 실패 처리가 다르다. 값 집계가 실패하면 상태 판정 자체가 불가능하므로
-     * 필드마다 "확인 불가" 표시를 세운다(0으로 오해하면 관리자가 필드를 지운다).
-     * 마지막 변경일은 보조 지표라 실패하면 비워둔다.
+     * <p>세 조회의 실패 처리가 각각 다르다.
+     *
+     * <ul>
+     *   <li>{@code customfieldvalue} — <b>필수</b>. 실패하면 스캔을 실패시킨다.
+     *       예전에는 필드마다 "확인 불가" 표시만 세웠는데, 그러면 값이 0으로 남아
+     *       {@code judge(0, 0, 0, 0)} 이 <b>[미사용] = 삭제 안전</b>을 내놓는다.
+     *       숫자 칸은 "확인 불가"인데 라벨은 초록이고 정렬은 그 필드를 맨 위로
+     *       올린다 — 관리자가 가장 먼저 지울 후보로 본다. 정보가 없는 것이
+     *       "지워도 된다"는 신호로 바뀌므로 부분 결과를 내면 안 된다.</li>
+     *   <li>{@code label} 테이블 — <b>필수</b>. 라벨 타입 필드는 값이 여기에만
+     *       있으므로(docs/00-환경실측.md 6번) 실패하면 위와 똑같이 0 → [미사용]이
+     *       된다. 영향 범위가 라벨 타입으로 좁을 뿐 방향이 같아서 함께 필수로 둔다.
+     *       같은 커넥션·같은 스키마인데 한쪽만 실패했다면 어느 수를 믿을 수 있는지
+     *       판단할 근거가 없다.</li>
+     *   <li>마지막 변경일 — 보조. 실패하면 비워둔다. 없으면 칸이 비고, 라벨 판정에는
+     *       쓰이지 않는다.</li>
+     * </ul>
      */
     private void applyValueCounts(ScanContext context, JanitorDao dao) {
         try {
@@ -243,16 +282,15 @@ public final class ScanService {
                     field.setIssuesWithValue(field.getIssuesWithValue() + count.getIssues());
                     field.setValueRows(field.getValueRows() + count.getRows());
                 }
-            } catch (RuntimeException e) {
-                log.warn("라벨 값 집계 실패 — 라벨 타입 필드가 0건으로 보일 수 있다", e);
-                context.addProblem("values", "label", e);
+            } catch (Throwable e) {
+                throw new ScanFailedException("라벨 값 집계 실패 (label)", e);
             }
-        } catch (RuntimeException e) {
-            log.warn("값 집계 실패 — 전 필드를 확인 불가로 표시한다", e);
-            context.addProblem("values", "customfieldvalue", e);
-            for (FieldUsage field : context.getFields()) {
-                field.setValueCountUnavailable(true);
-            }
+        } catch (ScanFailedException e) {
+            // 안쪽(label)에서 이미 판정한 실패다. 다시 포장하면 원인이 바뀐다.
+            throw e;
+        } catch (Throwable e) {
+            // 부분 결과를 내지 않는다 — 위 주석 참조. 값 0은 [미사용]으로 읽힌다.
+            throw new ScanFailedException("값 집계 실패 (customfieldvalue)", e);
         }
 
         try {
@@ -266,7 +304,7 @@ public final class ScanService {
                 field.setLastValueChange(lastChanges.get(
                         field.getName() == null ? "" : field.getName().trim().toLowerCase(java.util.Locale.ENGLISH)));
             }
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
             log.warn("마지막 변경일 조회 실패 — 보조 지표라 비워둔다", e);
             context.addProblem("lastChange", "changeitem/changegroup", e);
         }

@@ -182,4 +182,9 @@ public class ScreenCollector implements ReferenceCollector {
     private static boolean looksLikeI18nKey(String text) {
         return text.indexOf('.') >= 0 && text.indexOf(' ') < 0;
     }
+
+    @Override
+    public boolean isEssential() {
+        return false;
+    }
 }

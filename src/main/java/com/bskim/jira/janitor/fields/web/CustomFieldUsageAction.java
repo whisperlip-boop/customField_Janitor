@@ -8,6 +8,7 @@ import com.bskim.jira.janitor.fields.model.ReferenceType;
 import com.bskim.jira.janitor.fields.model.ScanProblem;
 import com.bskim.jira.janitor.fields.model.ScanProgress;
 import com.bskim.jira.janitor.fields.model.ScanResult;
+import com.bskim.jira.janitor.fields.scan.ScanFailure;
 import com.bskim.jira.janitor.fields.scan.ScanService;
 
 import java.text.SimpleDateFormat;
@@ -46,6 +47,11 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
 
     private String fieldId;
     private FieldUsage selectedField;
+    /**
+     * {@code fieldId} 를 숫자로 파싱한 값. 파싱 실패면 null.
+     * URL을 다시 만들 때는 <b>이것만</b> 쓴다 — 원본 문자열을 쓰면 XSS가 된다.
+     */
+    private Long selectedFieldId;
     private String lang;
     private LocaleText locale;
 
@@ -76,7 +82,13 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
             value = value.substring("customfield_".length());
         }
         try {
-            return result.getField(Long.parseLong(value));
+            Long numericId = Long.parseLong(value);
+            FieldUsage found = result.getField(numericId);
+            if (found != null) {
+                // 파싱에 성공하고 실제로 존재하는 필드일 때만 보관한다.
+                selectedFieldId = numericId;
+            }
+            return found;
         } catch (NumberFormatException e) {
             return null;
         }
@@ -97,6 +109,15 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
      * 선택된 언어로 문구를 얻는다. 이 화면은 {@code getText()} 대신 이것만 쓴다 —
      * 절반은 보는 사람 로케일, 절반은 선택한 언어로 나오면 안 된다.
      */
+    /**
+     * 인자를 넣는 문구. 이게 없으면 Velocity가 2-arg 호출의 메서드를 못 찾아
+     * {@code $action.text("...", $field.name)} 를 <b>문자열 그대로</b> 렌더링한다
+     * (실측: 상세 화면 {@code <title>}).
+     */
+    public String text(String key, Object arg) {
+        return locale().text(key, arg);
+    }
+
     public String text(String key) {
         return locale().text(key);
     }
@@ -114,12 +135,28 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
         return "CustomFieldUsage.jspa" + locale().queryParam(true);
     }
 
+    /**
+     * 언어 토글 링크. <b>요청받은 {@code fieldId} 문자열을 그대로 붙이지 않는다.</b>
+     *
+     * <p>그렇게 하면 반사형 XSS가 된다. {@code fieldId} 가 숫자로 파싱되지 않으면
+     * {@code doExecute} 는 목록 템플릿으로 떨어지는데, 그 템플릿의 토글은
+     * {@code <a href="$action.koUrl">} 로 값을 그대로 심는다. 즉
+     * {@code ?fieldId="><img src=x onerror=...>} 가 href를 탈출한다.
+     *
+     * <p>그래서 파싱에 성공한 숫자만 다시 내보낸다. 유효하지 않은 값을 URL에
+     * 되돌려 줄 이유가 애초에 없다.
+     */
     public String getKoUrl() {
-        return "CustomFieldUsage.jspa?lang=ko" + (fieldId == null ? "" : "&fieldId=" + fieldId);
+        return langUrl("ko");
     }
 
     public String getEnUrl() {
-        return "CustomFieldUsage.jspa?lang=en" + (fieldId == null ? "" : "&fieldId=" + fieldId);
+        return langUrl("en");
+    }
+
+    private String langUrl(String lang) {
+        return "CustomFieldUsage.jspa?lang=" + lang
+                + (selectedFieldId == null ? "" : "&fieldId=customfield_" + selectedFieldId);
     }
 
     public String getHelpUrl() {
@@ -156,6 +193,34 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
 
     public boolean isScanning() {
         return scanService.isRunning();
+    }
+
+    /**
+     * 마지막 스캔이 실패했으면 그 메시지, 아니면 null. 화면에 그대로 낸다.
+     *
+     * <p>진행률만으로는 부족하다 — 실패 후 화면을 새로 그리면 진행률은 사라지고
+     * <b>이전 스캔의 표와 시각만 남는다.</b> 그러면 관리자는 방금 스캔한 결과를
+     * 보고 있다고 믿는데 실제로는 지난번 스냅샷이다(기획서 7).
+     */
+    public String getScanFailure() {
+        ScanFailure failure = scanService.getLastFailure();
+        return failure == null ? null : failure.getMessage();
+    }
+
+    public String getScanFailureAt() {
+        ScanFailure failure = scanService.getLastFailure();
+        return failure == null ? null : formatLocal(failure.getFinishedAt());
+    }
+
+    /**
+     * 화면에 보이는 표가 실패한 스캔보다 오래된 것인가. 참이면 "지금 보는 것은
+     * 낡은 결과"라고 명시해야 한다 — 이게 이 수정의 핵심이다.
+     */
+    public boolean isResultStale() {
+        ScanFailure failure = scanService.getLastFailure();
+        ScanResult result = scanService.getLastResult();
+        return failure != null && result != null
+                && failure.getFinishedAt().after(result.getFinishedAt());
     }
 
     public List<FieldUsage> getFields() {

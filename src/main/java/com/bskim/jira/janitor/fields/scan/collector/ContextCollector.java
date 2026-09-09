@@ -115,4 +115,9 @@ public class ContextCollector implements ReferenceCollector {
         }
         return joined.toString();
     }
+
+    @Override
+    public boolean isEssential() {
+        return false;
+    }
 }

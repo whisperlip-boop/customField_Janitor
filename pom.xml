@@ -7,7 +7,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.bskim.jira</groupId>
     <artifactId>janitor</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 
     <organization>
         <name>BSKIM Company</name>
@@ -26,7 +26,7 @@
         <url>https://github.com/whisperlip-boop/customField_Janitor</url>
         <connection>scm:git:https://github.com/whisperlip-boop/customField_Janitor.git</connection>
         <developerConnection>scm:git:git@github.com:whisperlip-boop/customField_Janitor.git</developerConnection>
-        <tag>v1.0.0</tag>
+        <tag>v1.0.1</tag>
     </scm>
 
     <name>Custom Field Janitor</name>

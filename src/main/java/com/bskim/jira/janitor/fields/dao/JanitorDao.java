@@ -279,7 +279,10 @@ public class JanitorDao {
                 + " FROM " + table("gadgetuserpreference") + " gup"
                 + " JOIN " + table("portletconfiguration") + " pc ON gup.portletconfiguration = pc.id"
                 + " LEFT JOIN " + table("portalpage") + " pp ON pc.portalpage = pp.id"
-                + " WHERE gup.userprefvalue LIKE '%customfield_%'";
+                // LIKE 에서 _ 는 임의의 한 글자다. 여기서는 리터럴로 쓰려는 것이므로
+                // ESCAPE 를 준다. 지금 데이터로는 결과가 같지만(키가 customfield_숫자
+                // 뿐) 의도한 쿼리가 아니고 다른 DB로 옮길 때 오탐이 된다.
+                + " WHERE gup.userprefvalue LIKE '%customfield!_%' ESCAPE '!'";
 
         return databaseAccessor.executeQuery(new ConnectionFunction<List<GadgetPrefRow>>() {
             @Override
@@ -319,7 +322,7 @@ public class JanitorDao {
     public Map<String, Integer> getColumnLayoutCounts() {
         final String sql = "SELECT fieldidentifier, COUNT(*) AS use_count"
                 + " FROM " + table("columnlayoutitem")
-                + " WHERE fieldidentifier LIKE 'customfield_%'"
+                + " WHERE fieldidentifier LIKE 'customfield!_%' ESCAPE '!'"
                 + " GROUP BY fieldidentifier";
 
         return databaseAccessor.executeQuery(new ConnectionFunction<Map<String, Integer>>() {

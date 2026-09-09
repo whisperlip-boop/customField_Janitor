@@ -30,7 +30,6 @@ public class FieldSummaryDto {
 
     public long issuesWithValue;
     public long valueRows;
-    public boolean valueCountUnavailable;
 
     public String lastValueChange;
     public boolean lastValueChangeAmbiguous;
@@ -71,7 +70,6 @@ public class FieldSummaryDto {
 
         this.issuesWithValue = field.getIssuesWithValue();
         this.valueRows = field.getValueRows();
-        this.valueCountUnavailable = field.isValueCountUnavailable();
 
         this.lastValueChange = formatIso(field.getLastValueChange());
         this.lastValueChangeAmbiguous = field.isLastValueChangeAmbiguous();

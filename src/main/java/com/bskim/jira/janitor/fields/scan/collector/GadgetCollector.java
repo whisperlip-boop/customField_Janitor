@@ -53,4 +53,9 @@ public class GadgetCollector implements ReferenceCollector {
         String tail = slash >= 0 ? gadgetKey.substring(slash + 1) : gadgetKey;
         return tail.length() <= 60 ? tail : tail.substring(0, 57) + "...";
     }
+
+    @Override
+    public boolean isEssential() {
+        return false;
+    }
 }

@@ -71,4 +71,15 @@ public class ManagedFieldCollector implements ReferenceCollector {
         }
         return pluginKey;
     }
+
+    /**
+     * 참이다. 이 조회가 실패하면 앱이 잠근 필드(Sprint / Epic Link / Rank / Team /
+     * Development)가 [위험]이 아니라 [미사용]로 찍히고 삭제 링크까지 열린다 —
+     * 값은 {@code AO_*} 에 있어서 우리 집계로는 0이고 화면 참조도 없기 때문이다.
+     * docs/00-환경실측.md 12번에서 한 번 밟은 함정이라 실패 경로도 막아둔다.
+     */
+    @Override
+    public boolean isEssential() {
+        return true;
+    }
 }

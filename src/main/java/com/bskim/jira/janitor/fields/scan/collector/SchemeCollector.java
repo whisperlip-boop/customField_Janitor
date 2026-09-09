@@ -154,4 +154,9 @@ public class SchemeCollector implements ReferenceCollector {
                 return null;
         }
     }
+
+    @Override
+    public boolean isEssential() {
+        return false;
+    }
 }

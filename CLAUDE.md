@@ -101,8 +101,22 @@ IntersectionObserver 로 현재 위치를 강조하고, 없으면 색인은 그�
 6. **plugin key `com.bskim.jira.janitor`는 절대 바꾸지 않는다.**
    표시 이름은 언제든 바꿀 수 있다(나중에 users 모듈이 합쳐지면 "Jira Janitor"로).
    Java 패키지가 `...janitor.fields.*`로 갈라져 있는 것도 그 대비다.
-7. **실패를 조용히 누락시키지 않는다.** 못 읽은 항목은 "확인 불가" 목록으로 노출한다.
-   도구의 신뢰도가 여기서 갈린다.
+7. **실패를 조용히 누락시키지 않는다.** 등급이 둘이다.
+   - **필수** — 값 집계(`customfieldvalue`, `label`)와 잠긴 필드(`managedconfigurationitem`).
+     실패하면 `ScanFailedException`으로 **스캔 전체를 실패시킨다.** 부분 결과를 내지 않는다.
+     이유: 이 재료가 빠지면 라벨이 비는 게 아니라 **거꾸로** 나온다. 값을 못 읽으면 0이
+     남아 `judge(0,0,0,0)` = [미사용] = "삭제 안전"이고 정렬이 그 필드를 맨 위로 올린다.
+     정보가 없는 것이 적극적인 삭제 신호로 바뀌는 것이 이 도구에서 가장 나쁜 실패다.
+   - **보조** — 나머지 수집기, 마지막 변경일. "확인 불가" 목록으로 노출하고 계속한다.
+     수가 줄어들 뿐 라벨이 뒤집히지 않는다.
+
+   새 재료를 추가할 때 판단 기준: **"이게 실패하면 라벨이 뒤집히나?"** 뒤집히면
+   `ReferenceCollector.isEssential()`을 참으로 둔다.
+
+   실패 사실은 `ScanService.getLastFailure()`에 따로 보관한다 — 진행률만 쓰면 화면을
+   다시 그리는 순간 사라지고 이전 스캔의 표와 시각만 남아서, 관리자가 몇 주 전
+   스냅샷을 방금 것으로 믿는다. 화면은 실패 배너를 서버측에서 그리고, 표가 낡았으면
+   그 사실을 함께 알린다(`isResultStale()`).
 8. **v1의 한계를 UI에 명시한다.** "참조 없음 = 삭제 안전"으로 읽히면 안 된다.
 
 ## 함정 (직접 밟고 고친 것들)
@@ -147,6 +161,15 @@ IntersectionObserver 로 현재 위치를 강조하고, 없으면 색인은 그�
   중복 이름 필드는 마지막 변경일을 "부정확"으로 표시하고 값을 붙이지 않는다.
 - **Velocity는 문자열을 enum으로 변환하지 못한다.** `FieldUsage.getRefCount(String)` /
   `getRefs(String)`가 템플릿용 입구다.
+- **`catch (RuntimeException)`으로는 부족하다.** 8.13으로 컴파일해 8.17.1에서 돌리므로
+  그 가정이 깨질 때 나오는 것은 `NoSuchMethodError` / `NoClassDefFoundError` /
+  `AbstractMethodError` — 전부 `Error`다. 즉 **가장 현실적인 실패 모드가 유일하게
+  안 잡히는 예외**였다. 놓치면 `finally`가 running만 내리고 진행률은 RUNNING에 박혀
+  화면이 1.5초마다 영구 폴링한다(관리자는 이유를 못 본다). 스캔 경로는 `Throwable`을 잡는다.
+- **Velocity는 없는 오버로드를 조용히 문자열로 출력한다.** `text(key, arg)`가 없는데
+  템플릿에서 2-arg로 부르면 에러가 아니라 `$action.text("...", $x)` 가 그대로 렌더된다.
+- **`LIKE`의 `_`는 와일드카드다.** `'customfield_%'`는 의도한 쿼리가 아니다 →
+  `ESCAPE`를 준다.
 - **i18n `.properties`는 ISO-8859-1로 읽힌다.** 한글은 `\uXXXX`로 escape해야 한다.
   `i18n/*.properties.src`(UTF-8)를 고치고 `tools/make-i18n.py`로 생성한다.
   `src/main/resources/janitor*.properties`를 직접 고치지 말 것.

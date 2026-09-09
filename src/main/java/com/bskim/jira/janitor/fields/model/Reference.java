@@ -85,4 +85,50 @@ public final class Reference {
     public boolean isRisky() {
         return risky;
     }
+
+    /**
+     * 같은 참조인가. 같으면 {@link FieldUsage#addReference} 가 두 번 세지 않는다.
+     *
+     * <p>왜 필요한가: 한 대상이 같은 필드를 여러 자리에서 가리키는 경우가 있다.
+     * 2차원 통계 가젯의 {@code xstattype}/{@code ystattype}, 워크플로 한
+     * 디스크립터의 여러 {@code arg} 값이 그렇다. 그러면 같은 참조가 2건으로 세지고,
+     * {@code GADGET} 처럼 사용 증거로 세는 종류에서는 <b>[미사용]이 [방치]로
+     * 뒤집힌다.</b> 상세 화면에도 똑같은 행이 두 줄 나온다.
+     *
+     * <p>비교에 {@code projects} 와 {@code adminUrl} 은 넣지 않는다 — 같은 대상에서
+     * 파생된 값이라 판단에 새 정보를 주지 않고, 넣으면 순서 차이만으로 중복이
+     * 살아남는다. {@code risky} 는 넣는다: 같은 워크플로의 전이 화면 참조와
+     * 조건 참조는 위험도가 달라 서로 다른 참조다.
+     */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof Reference)) {
+            return false;
+        }
+        Reference that = (Reference) other;
+        return type == that.type
+                && risky == that.risky
+                && eq(targetId, that.targetId)
+                && eq(targetName, that.targetName)
+                && eq(detail, that.detail)
+                && eq(detailI18nKey, that.detailI18nKey);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = type == null ? 0 : type.hashCode();
+        result = 31 * result + (risky ? 1 : 0);
+        result = 31 * result + (targetId == null ? 0 : targetId.hashCode());
+        result = 31 * result + (targetName == null ? 0 : targetName.hashCode());
+        result = 31 * result + (detail == null ? 0 : detail.hashCode());
+        result = 31 * result + (detailI18nKey == null ? 0 : detailI18nKey.hashCode());
+        return result;
+    }
+
+    private static boolean eq(String left, String right) {
+        return left == null ? right == null : left.equals(right);
+    }
 }
