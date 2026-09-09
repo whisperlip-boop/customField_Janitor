@@ -1,0 +1,358 @@
+#* 목록 화면 — 기획서 6.1 "필드 사용 현황"
+
+   decorator/meta 두 줄은 실측값이다(docs/00-환경실측.md [확인 4]).
+   Jira 8.13의 커스텀 필드 화면이 쓰는 것과 같은 값을 넣어 관리 사이드바에서
+   "필드" 그룹이 열린 상태로 유지된다. *#
+<html>
+<head>
+    <title>$action.text("janitor.fields.page.title")</title>
+    <meta name="decorator" content="admin">
+    <meta name="admin.active.section" content="admin_issues_menu/element_options_section/fields_section">
+    <meta name="admin.active.tab" content="cf-usage-link">
+    <style type="text/css">
+        .janitor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 10px 0 16px; }
+        .janitor-toolbar .janitor-spacer { flex: 1 1 auto; }
+        .janitor-meta { color: #707070; font-size: 12px; }
+        /* 표 안의 "-" / "부정확" / "확인 불가" 는 날짜·숫자와 같은 크기로 둔다.
+           janitor-meta(12px)를 쓰면 같은 컬럼에서 글자 크기가 달라져 어긋나 보인다. */
+        .janitor-cellnote { color: #6b778c; }
+        .janitor-cellwarn { color: #974f0c; }
+        .janitor-note { margin: 0 0 16px; }
+        .janitor-help-link { white-space: nowrap; }
+        .janitor-lang { display: inline-flex; border: 1px solid #c1c7d0; border-radius: 3px; overflow: hidden; }
+        .janitor-lang a { padding: 4px 12px; font-size: 13px; text-decoration: none; color: #42526e; background: #fff; }
+        .janitor-lang a:hover { background: #f4f5f7; text-decoration: none; }
+        .janitor-lang a.janitor-lang-on { background: #0052cc; color: #fff; font-weight: bold; }
+        .janitor-lang a + a { border-left: 1px solid #c1c7d0; }
+        .janitor-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+        .janitor-filters input[type=text] { width: 260px; }
+        table.janitor-table { width: 100%; }
+        table.janitor-table th { white-space: nowrap; cursor: pointer; }
+        table.janitor-table th.janitor-nosort { cursor: default; }
+        table.janitor-table td.janitor-num, table.janitor-table th.janitor-num { text-align: right; }
+        .janitor-fieldid { color: #707070; font-size: 12px; }
+        .janitor-dup { color: #bf2600; font-weight: bold; }
+        .janitor-progress { margin: 10px 0; }
+        .janitor-empty { padding: 24px; text-align: center; color: #707070; }
+    </style>
+</head>
+<body>
+
+<div class="aui-page-header">
+    <div class="aui-page-header-inner">
+        <div class="aui-page-header-main">
+            <h2>$action.text("janitor.fields.page.title")</h2>
+        </div>
+        <div class="aui-page-header-actions">
+            #* 언어는 서버측에서 정해진다(LocaleText). 링크로 공유하면 받는 사람도 같은 언어로 본다. *#
+            <div class="janitor-lang">
+                <a href="$action.koUrl" #if($action.korean)class="janitor-lang-on"#end>한국어</a>
+                <a href="$action.enUrl" #if(!$action.korean)class="janitor-lang-on"#end>English</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+#if ($action.hasErrorMessages())
+    <div class="aui-message aui-message-warning">
+        #foreach ($message in $action.errorMessages)
+            <p>$action.escape($message)</p>
+        #end
+    </div>
+#end
+
+<p class="janitor-note">
+    $action.text("janitor.fields.page.intro")
+    <a href="$action.helpUrl" class="janitor-help-link">$action.text("janitor.fields.page.helpLink")</a>
+</p>
+
+<div class="aui-message aui-message-info janitor-note">
+    <p>$action.text("janitor.fields.limitation")</p>
+    <p>$action.text("janitor.fields.metric.note")</p>
+</div>
+
+<div class="janitor-toolbar">
+    <button id="janitor-scan" class="aui-button aui-button-primary">$action.text("janitor.fields.action.scanNow")</button>
+    <span class="janitor-spacer"></span>
+    #if ($action.scanned)
+        <span class="janitor-meta">
+            $action.text("janitor.fields.lastScan"): $action.lastScanAt
+            (${action.lastScanDurationMs} ms)
+        </span>
+        <a class="aui-button" href="${action.restBase}/fields.csv">$action.text("janitor.fields.action.csv")</a>
+    #end
+</div>
+
+<div id="janitor-progress" class="janitor-progress" style="display:none;">
+    <div class="aui-message aui-message-info">
+        <p id="janitor-progress-text"></p>
+    </div>
+</div>
+
+#if (!$action.scanned)
+    <div class="aui-message aui-message-info">
+        <p>$action.text("janitor.fields.empty.neverScanned")</p>
+        <p>$action.text("janitor.fields.empty.largeInstance")</p>
+    </div>
+#else
+
+<div class="janitor-filters">
+    <label for="janitor-search">$action.text("janitor.fields.filter.search")</label>
+    <input type="text" id="janitor-search" class="text"
+           placeholder="$action.text('janitor.fields.filter.searchPlaceholder')">
+
+    <label for="janitor-status">$action.text("janitor.fields.filter.status")</label>
+    <select id="janitor-status" class="select">
+        <option value="">$action.text("janitor.fields.filter.all")</option>
+        <option value="unused">$action.text("janitor.fields.status.unused")</option>
+        <option value="abandoned">$action.text("janitor.fields.status.abandoned")</option>
+        <option value="orphan-data">$action.text("janitor.fields.status.orphanData")</option>
+        <option value="active">$action.text("janitor.fields.status.active")</option>
+        <option value="at-risk">$action.text("janitor.fields.status.atRisk")</option>
+    </select>
+
+    <label for="janitor-type">$action.text("janitor.fields.filter.type")</label>
+    #* 입력 필드였을 때는 관리자가 타입 이름을 정확히 알아야 했다. 스캔 결과에 실제로
+       있는 타입만 드롭다운으로 낸다 — 고른 값은 반드시 결과가 있다. *#
+    <select id="janitor-type" class="select">
+        <option value="">$action.text("janitor.fields.filter.all")</option>
+        #foreach ($type in $action.fieldTypes)
+            <option value="$action.escape($type)">$action.escape($type)</option>
+        #end
+    </select>
+
+    <span class="janitor-meta" id="janitor-count"></span>
+</div>
+
+<table class="aui aui-table-interactive janitor-table" id="janitor-fields">
+    <thead>
+    <tr>
+        <th data-sort="status">$action.text("janitor.fields.column.status")</th>
+        <th data-sort="name">$action.text("janitor.fields.column.name")</th>
+        <th data-sort="type">$action.text("janitor.fields.column.type")</th>
+        <th class="janitor-num" data-sort="issues">$action.text("janitor.fields.column.issuesWithValue")</th>
+        <th class="janitor-num" data-sort="rows">$action.text("janitor.fields.column.valueRows")</th>
+        <th data-sort="lastchange">$action.text("janitor.fields.column.lastChange")</th>
+        <th class="janitor-num" data-sort="screens">$action.text("janitor.fields.column.screens")</th>
+        <th class="janitor-num" data-sort="workflows">$action.text("janitor.fields.column.workflows")</th>
+        <th class="janitor-num" data-sort="filters">$action.text("janitor.fields.column.filters")</th>
+        <th class="janitor-num" data-sort="gadgets">$action.text("janitor.fields.column.gadgets")</th>
+        <th class="janitor-num" data-sort="total">$action.text("janitor.fields.column.totalReferences")</th>
+    </tr>
+    </thead>
+    <tbody>
+    #foreach ($field in $action.fields)
+        #set ($status = $field.status)
+        <tr data-status="$status.code"
+            data-name="$action.escape($field.name)"
+            data-type="$action.escape($field.typeName)"
+            data-fieldid="$field.fieldId">
+            <td data-sort-value="$status.cleanupOrder">
+                #if ($status.lozengeType == "")
+                    <span class="aui-lozenge">$action.text($status.i18nKey)</span>
+                #else
+                    <span class="aui-lozenge aui-lozenge-${status.lozengeType}">$action.text($status.i18nKey)</span>
+                #end
+            </td>
+            <td>
+                <a href="$action.detailUrl($field)">$action.escape($field.name)</a>
+                #if ($field.locked)
+                    <span class="aui-lozenge aui-lozenge-error"
+                          title="$action.text('janitor.fields.locked')">$action.text("janitor.fields.lockedShort")</span>
+                #end
+                #if ($field.duplicateName)
+                    <span class="janitor-dup" title="$action.text('janitor.fields.duplicateName')">&#9888;</span>
+                #end
+                <div class="janitor-fieldid">$field.fieldId</div>
+            </td>
+            <td>
+                $action.escape($field.typeName)
+                #if (!$field.typeAvailable)
+                    <div class="janitor-dup" title="$action.text('janitor.fields.typeUnavailable')">$action.text("janitor.fields.typeUnavailableShort")</div>
+                #end
+            </td>
+            <td class="janitor-num" data-sort-value="$field.issuesWithValue">
+                #if ($field.valueCountUnavailable)
+                    <span class="janitor-cellwarn">$action.text("janitor.fields.unavailable")</span>
+                #else
+                    $field.issuesWithValue
+                #end
+            </td>
+            <td class="janitor-num" data-sort-value="$field.valueRows">$field.valueRows</td>
+            <td>
+                #if ($field.lastValueChangeAmbiguous)
+                    <span class="janitor-cellwarn"
+                          title="$action.text('janitor.fields.duplicateName')">$action.text("janitor.fields.inaccurate")</span>
+                #elseif ($field.lastValueChange)
+                    $action.formatDay($field.lastValueChange)
+                #else
+                    <span class="janitor-cellnote">-</span>
+                #end
+            </td>
+            <td class="janitor-num" data-sort-value="$field.getRefCount('SCREEN')">$field.getRefCount('SCREEN')</td>
+            <td class="janitor-num" data-sort-value="$field.getRefCount('WORKFLOW')">$field.getRefCount('WORKFLOW')</td>
+            <td class="janitor-num" data-sort-value="$field.getRefCount('FILTER')">$field.getRefCount('FILTER')</td>
+            <td class="janitor-num" data-sort-value="$field.getRefCount('GADGET')">$field.getRefCount('GADGET')</td>
+            <td class="janitor-num" data-sort-value="$field.totalReferenceCount">$field.totalReferenceCount</td>
+        </tr>
+    #end
+    </tbody>
+</table>
+
+#if ($action.problems.size() > 0)
+    <h3>$action.text("janitor.fields.problems.title") ($action.problems.size())</h3>
+    <p class="janitor-meta">$action.text("janitor.fields.problems.intro")</p>
+    <table class="aui">
+        <thead>
+        <tr>
+            <th>$action.text("janitor.fields.problems.area")</th>
+            <th>$action.text("janitor.fields.problems.target")</th>
+            <th>$action.text("janitor.fields.problems.message")</th>
+        </tr>
+        </thead>
+        <tbody>
+        #foreach ($problem in $action.problems)
+            <tr>
+                <td>$action.escape($problem.area)</td>
+                <td>$action.escape($problem.target)</td>
+                <td>$action.escape($problem.message)</td>
+            </tr>
+        #end
+        </tbody>
+    </table>
+#end
+
+#end
+
+<script type="text/javascript">
+(function () {
+    var restBase = "${action.restBase}";
+    var langParam = "$action.restLangParam";
+    var scanButton = document.getElementById("janitor-scan");
+    var progressBox = document.getElementById("janitor-progress");
+    var progressText = document.getElementById("janitor-progress-text");
+    var polling = null;
+
+    function request(method, path, done) {
+        var xhr = new XMLHttpRequest();
+        xhr.open(method, restBase + path + langParam, true);
+        xhr.setRequestHeader("Accept", "application/json");
+        // 쿠키 인증으로 POST를 보내려면 이 헤더가 필요하다(Jira XSRF 검사).
+        xhr.setRequestHeader("X-Atlassian-Token", "no-check");
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4) { return; }
+            var body = null;
+            try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+            done(xhr.status, body);
+        };
+        xhr.send();
+    }
+
+    function showProgress(status) {
+        if (!status) { return; }
+        progressBox.style.display = "";
+        if (status.state === "RUNNING") {
+            progressText.textContent = (status.stageLabel || status.stage || "") +
+                " (" + status.stageIndex + "/" + status.stageTotal + ", " + status.percent + "%)";
+        } else if (status.state === "FAILED") {
+            progressText.textContent = status.error || "failed";
+        } else if (status.state === "DONE") {
+            progressText.textContent = "";
+            progressBox.style.display = "none";
+        }
+    }
+
+    function poll() {
+        request("GET", "/scan/status", function (code, status) {
+            if (code !== 200 || !status) { return; }
+            showProgress(status);
+            if (status.state !== "RUNNING") {
+                window.clearInterval(polling);
+                polling = null;
+                scanButton.removeAttribute("disabled");
+                // 결과는 서버 렌더링 표에 있으므로 한 번 새로 그린다.
+                window.location.reload();
+            }
+        });
+    }
+
+    if (scanButton) {
+        scanButton.addEventListener("click", function () {
+            scanButton.setAttribute("disabled", "disabled");
+            request("POST", "/scan", function (code, status) {
+                showProgress(status);
+                if (polling === null) {
+                    polling = window.setInterval(poll, 1500);
+                }
+            });
+        });
+    }
+
+    // 스캔이 이미 돌고 있으면(다른 창에서 눌렀거나 새로고침) 바로 폴링을 붙인다.
+    #if ($action.scanning)
+        scanButton.setAttribute("disabled", "disabled");
+        polling = window.setInterval(poll, 1500);
+        poll();
+    #end
+
+    // --- 필터 / 정렬 ------------------------------------------------------------
+    var table = document.getElementById("janitor-fields");
+    if (!table) { return; }
+    var tbody = table.querySelector("tbody");
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll("tr"));
+    var search = document.getElementById("janitor-search");
+    var statusFilter = document.getElementById("janitor-status");
+    var typeFilter = document.getElementById("janitor-type");
+    var counter = document.getElementById("janitor-count");
+
+    function applyFilters() {
+        var term = (search.value || "").toLowerCase();
+        var wantStatus = statusFilter.value;
+        // 드롭다운 값은 목록에 실제로 있는 타입 이름이므로 정확일치로 비교한다.
+        var wantType = (typeFilter.value || "").toLowerCase();
+        var shown = 0;
+        rows.forEach(function (row) {
+            var name = (row.getAttribute("data-name") || "").toLowerCase();
+            var fieldId = (row.getAttribute("data-fieldid") || "").toLowerCase();
+            var type = (row.getAttribute("data-type") || "").toLowerCase();
+            var visible = (term === "" || name.indexOf(term) >= 0 || fieldId.indexOf(term) >= 0)
+                && (wantStatus === "" || row.getAttribute("data-status") === wantStatus)
+                && (wantType === "" || type === wantType);
+            row.style.display = visible ? "" : "none";
+            if (visible) { shown++; }
+        });
+        counter.textContent = shown + " / " + rows.length;
+    }
+
+    search.addEventListener("input", applyFilters);
+    statusFilter.addEventListener("change", applyFilters);
+    typeFilter.addEventListener("change", applyFilters);
+    applyFilters();
+
+    var sortState = {};
+    Array.prototype.slice.call(table.querySelectorAll("th[data-sort]")).forEach(function (header) {
+        header.addEventListener("click", function () {
+            var key = header.getAttribute("data-sort");
+            var ascending = !sortState[key];
+            sortState = {};
+            sortState[key] = ascending;
+            var cellIndex = Array.prototype.indexOf.call(header.parentNode.children, header);
+            rows.sort(function (left, right) {
+                var a = left.children[cellIndex];
+                var b = right.children[cellIndex];
+                var av = a.getAttribute("data-sort-value");
+                var bv = b.getAttribute("data-sort-value");
+                if (av !== null && bv !== null) {
+                    return (ascending ? 1 : -1) * (parseFloat(av) - parseFloat(bv));
+                }
+                return (ascending ? 1 : -1) *
+                    a.textContent.trim().toLowerCase().localeCompare(b.textContent.trim().toLowerCase());
+            });
+            rows.forEach(function (row) { tbody.appendChild(row); });
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

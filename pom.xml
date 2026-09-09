@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.bskim.jira</groupId>
+    <artifactId>janitor</artifactId>
+    <version>1.0.0</version>
+
+    <organization>
+        <name>BSKIM Company</name>
+        <url>https://github.com/whisperlip-boop</url>
+    </organization>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <scm>
+        <url>https://github.com/whisperlip-boop/customField_Janitor</url>
+        <connection>scm:git:https://github.com/whisperlip-boop/customField_Janitor.git</connection>
+        <developerConnection>scm:git:git@github.com:whisperlip-boop/customField_Janitor.git</developerConnection>
+        <tag>v1.0.0</tag>
+    </scm>
+
+    <name>Custom Field Janitor</name>
+    <description>Shows where each custom field is actually used - issue value counts, screens, field configurations, workflows, filters, schemes and dashboard gadgets - so administrators can decide which fields are safe to clean up. Read-only.</description>
+    <packaging>atlassian-plugin</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.atlassian.jira</groupId>
+            <artifactId>jira-api</artifactId>
+            <version>${jira.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- 워크플로 디스크립터(ActionDescriptor 등). jira-api가 osworkflow를 transitive로
+             끌고 오지만 컴파일 시점에 명시해두는 편이 안전하다. -->
+        <dependency>
+            <groupId>osworkflow</groupId>
+            <artifactId>osworkflow</artifactId>
+            <version>2.9.0-atlassian-1</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- @WebSudoRequired 하나 때문에 넣는다. Jira 8.13이 sal-api-4.2.0을 번들하므로
+             같은 버전으로 컴파일한다. /secure/admin/ 경로만으로는 웹수도가 걸리지 않는다(실측). -->
+        <dependency>
+            <groupId>com.atlassian.sal</groupId>
+            <artifactId>sal-api</artifactId>
+            <version>4.2.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>javax.ws.rs</groupId>
+            <artifactId>jsr311-api</artifactId>
+            <version>1.1.1</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>3.1.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>javax.inject</groupId>
+            <artifactId>javax.inject</artifactId>
+            <version>1</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.10</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.atlassian.maven.plugins</groupId>
+                <artifactId>jira-maven-plugin</artifactId>
+                <version>${amps.version}</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <!-- 컴파일 버전(jira.version)과 실행 버전(jira.runtime.version)을 나눈다.
+                         근거: 우리가 검증해야 하는 것은 "8.13으로 컴파일한 jar이 8.17.1에서
+                         도는가"다. 두 값을 한 속성으로 두면 8.17.1로 컴파일해서 8.17.1에서
+                         돌리게 되어 정작 그 질문에 답을 못 한다. 기본값은 같으므로
+                         평소 빌드·배포 동작은 바뀌지 않는다. -->
+                    <productVersion>${jira.runtime.version}</productVersion>
+                    <productDataVersion>${jira.runtime.version}</productDataVersion>
+                    <enableQuickReload>true</enableQuickReload>
+                    <!-- AMPS 8.1.2의 javadoc 기반 WADL 생성기가 이 JDK 조합에서 깨진다(도구 버그). -->
+                    <skipRestDocGeneration>true</skipRestDocGeneration>
+
+                    <instructions>
+                        <Atlassian-Plugin-Key>${atlassian.plugin.key}</Atlassian-Plugin-Key>
+                        <Import-Package>
+                            org.springframework.osgi.*;resolution:="optional",
+                            org.eclipse.gemini.blueprint.*;resolution:="optional",
+                            *
+                        </Import-Package>
+                        <!-- web fragment(web-item)의 condition은 플러그인의 Spring 컨테이너로
+                             주입된다. 이 헤더가 없으면 컨테이너가 없어서
+                             "Plugin has no container"로 모듈 전체가 비활성화된다(실측). -->
+                        <Spring-Context>*</Spring-Context>
+                    </instructions>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <properties>
+        <!-- WSL2 Docker 테스트 인스턴스(8.13.0)에 맞춰 컴파일한다. 여기서 쓰는 API는
+             8.13~8.17 사이에 시그니처 변화가 없어서 낮은 쪽으로 컴파일한 jar가 운영
+             8.17.1에도 그대로 설치·동작한다(반대 방향은 보장되지 않음). -->
+        <jira.version>8.13.0</jira.version>
+        <!-- atlas-run 으로 띄울 Jira 버전. 기본은 컴파일 버전과 같게 둔다.
+             다른 버전에서 돌려보려면 jira817 프로필을 쓴다(아래). -->
+        <jira.runtime.version>${jira.version}</jira.runtime.version>
+        <amps.version>8.1.2</amps.version>
+        <!-- 기획서 결정 6: key는 이름과 별개로 중립적으로 잡는다. 나중에 users 모듈이
+             합쳐져 표시 이름이 "Jira Janitor"로 바뀌어도 이 key는 절대 바꾸지 않는다. -->
+        <atlassian.plugin.key>com.bskim.jira.janitor</atlassian.plugin.key>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+    </properties>
+
+    <profiles>
+        <!--
+          운영 타깃(8.17.1)에서 실제로 돌려보는 프로필. 검증 전용이고
+          배포 산출물에는 영향이 없다.
+
+              atlas-run -Pjira817          (또는 atlas-debug -Pjira817)
+              → http://localhost:2990/jira   admin / admin
+                AMPS가 개발용 timebomb 라이선스를 자동으로 넣으므로 라이선스 키가 필요 없다.
+
+          두 가지가 반드시 함께 있어야 한다:
+
+          (1) jira.runtime.version 만 올리고 jira.version(컴파일)은 8.13.0으로 둔다.
+              그래야 "낮은 쪽으로 컴파일한 jar이 높은 쪽에서 도는가"를 검증한다.
+
+          (2) applications 로 jira-software 를 명시한다. 이것이 없으면 Jira Core만 떠서
+              Sprint / Epic Link / Epic Name / Rank / Story Points 가 존재하지 않는다
+              (실측: 같은 SDK로 띄운 다른 프로젝트의 atlas-run 홈에 greenhopper가 없었다).
+              그 필드들이 이 앱의 주요 검증 대상이라 빠지면 절반만 확인하는 셈이다.
+
+          주의: atlas-run 은 H2를 쓴다. PostgreSQL 방언 검증은 docker 8.13 인스턴스가
+          담당한다. 두 환경이 서로 다른 축을 덮으므로 어느 하나로 대체되지 않는다.
+        -->
+        <profile>
+            <id>jira817</id>
+            <properties>
+                <jira.runtime.version>8.17.1</jira.runtime.version>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.atlassian.maven.plugins</groupId>
+                        <artifactId>jira-maven-plugin</artifactId>
+                        <version>${amps.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <applications>
+                                <application>
+                                    <applicationKey>jira-software</applicationKey>
+                                    <version>${jira.runtime.version}</version>
+                                </application>
+                            </applications>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>

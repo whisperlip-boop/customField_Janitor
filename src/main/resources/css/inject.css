@@ -1,0 +1,17 @@
+/* 기획서 6.3 주입 배지. 기존 표의 줄 간격을 흔들지 않게 작게 붙인다. */
+.janitor-inject {
+    margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.janitor-inject-counts {
+    color: #707070;
+}
+
+.janitor-inject-link {
+    white-space: nowrap;
+}

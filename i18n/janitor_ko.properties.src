@@ -1,0 +1,277 @@
+# Custom Field Janitor - 한국어
+# 이 파일이 원본이다. src/main/resources/janitor_ko.properties 는 tools/make-i18n.py 로 생성한다.
+
+janitor.fields.menu.label=필드 사용처
+janitor.fields.menu.tooltip=커스텀 필드가 실제로 어디서 쓰이는지 본다
+
+janitor.fields.page.title=필드 사용 현황
+janitor.fields.page.intro=필드마다 값이 들어 있는 이슈 수와, 그 필드를 참조하는 화면·필드 설정·워크플로·필터·스킴·대시보드 가젯을 보여줍니다. 이 화면에서는 아무것도 지우지 않습니다. 각 항목은 Jira 표준 관리 화면으로 연결됩니다.
+
+janitor.fields.limitation=포함되지 않은 것: Agile 보드 설정(카드 레이아웃, 빠른 필터, 추정 필드, 스윔레인)과 일부 서드파티 앱이 자체 테이블에 저장한 설정. 여기서 "참조 없음"이라고 해서 삭제해도 안전하다는 증명은 아닙니다.
+janitor.fields.metric.note="값 있는 이슈 수"는 서로 다른 이슈의 개수입니다. "값 행 수"는 저장된 행 수이고, 다중 값 필드는 이슈 하나가 여러 행을 만들기 때문에 두 숫자가 다릅니다. 집계 대상은 customfieldvalue 테이블과 label 테이블입니다. 값을 앱 자체 테이블에 저장하는 타입(Rank 등 일부 서드파티 타입)은 여전히 0으로 나옵니다.
+
+janitor.fields.action.scanNow=지금 스캔
+janitor.fields.action.csv=CSV 내보내기
+janitor.fields.lastScan=마지막 스캔
+
+janitor.fields.empty.neverScanned=이 노드에서는 아직 스캔한 적이 없습니다. "지금 스캔"을 누르세요.
+janitor.fields.empty.largeInstance=대규모 인스턴스에서는 스캔이 커스텀 필드 값 전체를 읽습니다. 업무 시간 외에 실행하기를 권합니다.
+
+janitor.fields.filter.search=검색
+janitor.fields.filter.searchPlaceholder=이름 또는 customfield_10001
+janitor.fields.filter.status=상태
+janitor.fields.filter.all=전체
+janitor.fields.filter.type=타입
+janitor.fields.filter.typePlaceholder=예: 숫자
+
+janitor.fields.column.status=상태
+janitor.fields.column.name=필드
+janitor.fields.column.type=타입
+janitor.fields.column.issuesWithValue=값 있는 이슈 수
+janitor.fields.column.valueRows=값 행 수
+janitor.fields.column.lastChange=마지막 값 변경
+janitor.fields.column.screens=화면
+janitor.fields.column.workflows=워크플로
+janitor.fields.column.filters=필터
+janitor.fields.column.gadgets=가젯
+janitor.fields.column.totalReferences=참조 합계
+
+janitor.fields.duplicateName=같은 이름의 커스텀 필드가 또 있습니다. 항상 이름이 아니라 필드 ID로 판단하세요.
+janitor.fields.inject.values=값 {0}건
+janitor.fields.inject.link=사용처
+janitor.fields.unavailable=확인 불가
+janitor.fields.lockedShort=잠김
+janitor.fields.locked=앱이 잠근 필드입니다. Jira 자신도 이 필드의 삭제 메뉴를 숨기므로 이 화면에도 삭제 링크를 두지 않았습니다. 지우면 그 앱이 깨집니다 — 예를 들어 Sprint를 지우면 Jira Software 보드가 깨집니다. 값도 앱 자체 테이블에 있을 수 있어서 "값 있는 이슈 수"가 0으로 보일 수 있습니다.
+janitor.fields.typeUnavailableShort=타입 없음
+janitor.fields.typeUnavailable=이 필드의 타입을 제공하는 앱이 비활성이거나 삭제되었습니다. Jira는 이 필드를 표시하거나 편집할 수 없지만 필드와 값은 DB에 남아 있습니다. 이 필드의 컨텍스트는 읽지 못했습니다. 보통 앱을 지운 뒤 남은 잔해이고, 정리 대상일 가능성이 높습니다.
+janitor.fields.inaccurate=부정확
+
+janitor.fields.status.unused=미사용
+janitor.fields.status.abandoned=방치
+janitor.fields.status.orphanData=고아 데이터
+janitor.fields.status.active=활성
+janitor.fields.status.atRisk=위험
+
+janitor.fields.verdict.unused=값이 있는 이슈가 0건이고 어떤 설정에서도 참조되지 않습니다. 삭제 안전.
+janitor.fields.verdict.abandoned=화면이나 설정에는 걸려 있는데 아무도 값을 입력하지 않습니다. 권장 조치는 삭제가 아니라 "화면에서 제거"입니다.
+janitor.fields.verdict.orphanData=값이 들어 있는 이슈가 있는데 어떤 화면에도 없습니다. 삭제하면 그 데이터가 사라집니다.
+janitor.fields.verdict.active=정상 사용 중입니다.
+janitor.fields.verdict.atRisk=앱이 이 필드를 잠갔거나, 워크플로 또는 권한·알림·이슈 보안 스킴이 참조합니다. 삭제하면 그 동작이 조용히 깨집니다.
+
+janitor.fields.ref.managed=앱 관리
+janitor.fields.ref.screen=화면
+janitor.fields.ref.fieldConfig=필드 설정
+janitor.fields.ref.context=컨텍스트
+janitor.fields.ref.workflow=워크플로
+janitor.fields.ref.filter=필터
+janitor.fields.ref.permissionScheme=권한 스킴
+janitor.fields.ref.notificationScheme=알림 스킴
+janitor.fields.ref.issueSecurityScheme=이슈 보안 스킴
+janitor.fields.ref.gadget=대시보드 가젯
+
+janitor.fields.wf.transitionScreen=전이 화면
+janitor.fields.wf.condition=조건
+janitor.fields.wf.validator=검증기
+janitor.fields.wf.preFunction=전처리 함수
+janitor.fields.wf.postFunction=후처리 함수
+janitor.fields.wf.stepFunction=스텝 함수
+janitor.fields.wf.numericGuess=숫자 ID 일치 (추정)
+
+janitor.fields.stage.fields=커스텀 필드 목록 읽는 중
+janitor.fields.stage.values=값 집계 중
+janitor.fields.stage.managed=앱 관리 필드 확인 중
+janitor.fields.stage.screens=화면 훑는 중
+janitor.fields.stage.fieldConfigs=필드 설정 훑는 중
+janitor.fields.stage.contexts=컨텍스트 훑는 중
+janitor.fields.stage.workflows=워크플로 훑는 중
+janitor.fields.stage.filters=필터 훑는 중
+janitor.fields.stage.schemes=권한·알림·이슈 보안 스킴 훑는 중
+janitor.fields.stage.gadgets=대시보드 가젯 훑는 중
+janitor.fields.stage.finishing=마무리 중
+
+janitor.fields.problems.title=확인 불가
+janitor.fields.problems.intro=아래 항목은 읽지 못했습니다. "참조 없음"이 아니라 "모름"으로 취급하세요.
+janitor.fields.problems.area=단계
+janitor.fields.problems.target=항목
+janitor.fields.problems.message=이유
+
+janitor.fields.detail.title=필드 사용처 - {0}
+janitor.fields.detail.heading=필드 사용처
+janitor.fields.detail.backToList=필드 목록으로
+janitor.fields.detail.context=컨텍스트
+janitor.fields.detail.contextGlobal=전체 프로젝트
+janitor.fields.detail.configure=Jira에서 이 필드 설정
+janitor.fields.detail.deleteInJira=Jira에서 이 필드 삭제
+janitor.fields.detail.noReference=참조가 없습니다.
+janitor.fields.detail.target=대상
+janitor.fields.detail.where=위치
+janitor.fields.detail.projects=프로젝트
+janitor.fields.detail.risky=동작이 깨짐
+janitor.fields.detail.notFound={0} 의 상세를 볼 수 없습니다. 먼저 스캔하거나, 필드가 이미 삭제되었을 수 있습니다.
+
+# ---------------------------------------------------------------------------
+# 사용 설명서 (/secure/admin/CustomFieldUsageHelp.jspa)
+# ---------------------------------------------------------------------------
+janitor.fields.page.helpLink=이 화면을 읽는 방법 →
+
+janitor.help.title=필드 사용 현황 — 사용 설명서
+janitor.help.backToList=필드 사용 현황으로 돌아가기
+janitor.help.toc=목차
+janitor.help.intro=이 도구는 "이 커스텀 필드를 지워도 되는가"라는 하나의 질문에 답하기 위해 만들었습니다. 필드마다 값·설정·조회 세 방향을 따로 확인해 상태 라벨 하나로 요약합니다. 라벨만 보고 판단하면 틀립니다 — 그 옆의 숫자를 함께 보셔야 합니다. 이 문서는 각 숫자가 무엇을 세었고 무엇을 세지 않았는지 설명합니다.
+janitor.help.readOnly=이 앱은 아무것도 지우지 않습니다. 각 항목은 Jira 표준 관리 화면으로 연결만 하고, 실제 변경은 그 화면에서 관리자가 합니다. 스캔 버튼도 읽기만 합니다.
+
+janitor.help.col.column=컬럼
+janitor.help.col.meaning=의미
+
+# --- 1. 목록 컬럼 ---
+janitor.help.columns.title=목록 화면의 컬럼
+janitor.help.columns.status=세 방향을 합쳐 내린 판정 한 줄입니다. 2장에서 자세히 설명합니다. 이 값은 저장된 것이 아니라 스캔한 숫자에서 매번 계산됩니다.
+janitor.help.columns.field=필드 이름과 그 아래 필드 ID입니다. 이 도구의 모든 판단은 이름이 아니라 ID 기준입니다 — 정리가 필요한 인스턴스에는 같은 이름의 필드가 여러 개 있는 것이 정상이고, 이름으로 판단하면 엉뚱한 필드를 지웁니다. 이름을 클릭하면 그 필드의 상세 화면으로 갑니다. 이름 옆에 붙는 표시는 3장에서 설명합니다.
+janitor.help.columns.type=필드 타입입니다. 타입을 제공하는 앱이 비활성이면 사람이 읽을 수 있는 이름이 없어서 타입 키가 그대로 나옵니다(예: com.pyxis.greenhopper.jira:gh-sprint). 그 경우 아래에 "타입 없음" 표시가 붙습니다.
+janitor.help.columns.issuesWithValue=이 필드에 값이 들어 있는 이슈의 개수입니다. 서로 다른 이슈의 수이므로 이슈 하나에 값이 여러 개여도 1로 셉니다. 이 숫자가 이 도구의 주 지표입니다 — Jira 기본 관리 화면이 알려주지 않는 값입니다.
+janitor.help.columns.valueRows=저장된 값 행의 개수입니다. 다중 선택이나 멀티 사용자 필드는 이슈 하나가 여러 행을 만들기 때문에 "값 있는 이슈 수"보다 큽니다. 두 숫자가 다르다고 오류가 아닙니다. 규모를 볼 때는 이슈 수를, 데이터 양을 볼 때는 행 수를 보십니다.
+janitor.help.columns.lastChange=이 필드 값이 마지막으로 바뀐 날짜입니다. 보조 지표입니다. Jira는 변경 이력에 필드 ID가 아니라 그때의 필드 이름을 저장하기 때문에, 이름이 중복된 필드는 이력이 섞여 신뢰할 수 없습니다. 그런 경우 날짜 대신 "부정확"이라고 표시하고 값을 붙이지 않습니다.
+janitor.help.columns.screens=이 필드가 놓인 화면의 개수입니다. 화면에 없으면 사용자가 값을 입력할 수도, 이슈에서 볼 수도 없습니다. 상태 판정에서 특별한 무게를 갖는 숫자입니다.
+janitor.help.columns.workflows=워크플로에서 이 필드를 참조하는 건수입니다. 전이 화면, 조건, 검증기, 전·후처리 함수를 모두 셉니다. 같은 필드가 여러 전이에서 쓰이면 그만큼 늘어납니다.
+janitor.help.columns.filters=이 필드를 참조하는 저장된 검색(필터)의 개수입니다. JQL에서 필드 이름으로 쓴 경우와 cf[ID]로 쓴 경우를 모두 셉니다.
+janitor.help.columns.gadgets=이 필드를 설정에 담고 있는 대시보드 가젯의 개수입니다.
+janitor.help.columns.totalReferences=위의 모든 참조 종류를 합한 수입니다. 필드 설정과 컨텍스트까지 포함하므로 상태 판정에 쓰이는 수와는 다릅니다(2장 참고).
+janitor.help.columns.sortNote=컬럼 제목을 클릭하면 정렬됩니다. 기본 정렬은 청소 대상이 위로 오는 순서(미사용 → 방치 → 고아 데이터 → 활성 → 위험)입니다. 위쪽부터 훑어 내려가시면 됩니다. 검색창은 필드 이름과 필드 ID를 함께 찾습니다.
+
+# --- 2. 상태 라벨 ---
+janitor.help.status.title=상태 라벨
+janitor.help.status.intro=라벨은 다섯 개뿐이고 늘리지 않습니다. 아래 순서대로 위에서부터 검사해 먼저 걸리는 것으로 정합니다.
+janitor.help.status.condition=조건
+janitor.help.status.meaning=뜻
+janitor.help.status.action=권장 조치:
+
+janitor.help.status.cond.unused=값 0 · 화면 0 · 사용 증거 참조 0
+janitor.help.status.desc.unused=값이 들어 있는 이슈가 없고, 어떤 화면·워크플로·필터·가젯·스킴에서도 참조되지 않습니다. 이 도구가 확인할 수 있는 범위에서는 아무도 쓰지 않는 필드입니다.
+janitor.help.status.act.unused=청소 1차 대상입니다. 다만 7장의 한계를 먼저 읽으십시오 — Agile 보드 설정이나 서드파티 앱 설정은 이 도구가 보지 못합니다.
+
+janitor.help.status.cond.abandoned=값 0 · (화면 또는 필터·가젯 참조 있음)
+janitor.help.status.desc.abandoned=화면이나 설정에는 걸려 있는데 아무도 값을 입력한 적이 없습니다. 화면에 있는데도 값이 0이면 사용자가 그 필드를 무시하고 있다는 뜻입니다. 화면 참조는 없지만 필터나 가젯에서만 쓰이는 경우도 여기에 들어갑니다 — 아무도 입력할 수 없는데 지우면 필터가 깨지는 상태입니다.
+janitor.help.status.act.abandoned=바로 지우기보다 먼저 화면에서 제거하십시오. 화면에서 빼도 값이 없으니 잃을 것이 없고, 한동안 아무 문의가 없으면 그때 삭제하면 됩니다. 필터 참조가 있으면 그 필터를 먼저 정리하십시오.
+
+janitor.help.status.cond.orphan-data=값 > 0 · 화면 0
+janitor.help.status.desc.orphan-data=이슈에 값이 들어 있는데 이 필드가 놓인 화면이 하나도 없습니다. 예전에는 화면에 있어서 데이터가 쌓였고 그 뒤 화면에서 빠진 상태입니다. 이슈를 열어도 이 필드가 보이지 않으니 사람 눈에는 없는 필드처럼 보이지만 데이터는 남아 있습니다. Jira 기본 관리 화면에서는 "화면 0개"로만 보여서 안 쓰는 필드로 오해하기 가장 쉬운 상태입니다.
+janitor.help.status.act.orphan-data=지우면 그 값이 영구히 사라집니다. 데이터가 아직 필요한지 먼저 확인하십시오. 필요하면 화면에 다시 올리고, 필요 없으면 CSV나 JQL로 먼저 뽑아 두고 지우십시오.
+
+janitor.help.status.cond.active=값 > 0 · 화면 > 0
+janitor.help.status.desc.active=화면에 있고 값도 들어옵니다. 정상 사용 중입니다.
+janitor.help.status.act.active=건드리지 마십시오. 정리 대상이 아닙니다.
+
+janitor.help.status.cond.at-risk=앱이 잠갔거나 · 워크플로·권한·알림·이슈 보안 스킴이 참조
+janitor.help.status.desc.at-risk=값과 화면 상태에 관계없이 가장 먼저 붙는 라벨입니다. 이 참조들은 지웠을 때 화면이 아니라 동작이 깨지고, 그 깨짐이 조용합니다. 권한 스킴에서 필드가 사라지면 오류가 나는 대신 그 항목이 아무에게도 권한을 주지 않게 되고, 워크플로 후처리 함수는 값 설정을 그냥 건너뜁니다. 앱이 잠근 필드(Sprint, Epic Link 등)도 여기에 들어갑니다.
+janitor.help.status.act.at-risk=이 라벨은 "절대 지우지 마라"가 아니라 "먼저 정리할 것이 있다"는 뜻입니다. 상세 화면에서 참조 위치를 확인해 그것을 먼저 제거하면 라벨이 내려갑니다. 단 앱이 잠근 필드는 예외입니다 — 그 앱을 계속 쓴다면 손대지 마십시오.
+
+janitor.help.status.order.title=판정 순서가 중요한 이유
+janitor.help.status.order.body=위험을 맨 먼저 검사하는 것은 심각도 때문이 아니라 놓치면 안 되기 때문입니다. 다른 라벨은 값과 화면 숫자만 봐도 짐작이 되지만, 워크플로나 스킴 참조는 Jira 기본 화면에 흔적이 전혀 없어서 라벨이 말해주지 않으면 아무도 모릅니다. 되돌릴 수 없다는 기준으로 보면 오히려 고아 데이터가 더 위험합니다 — 위험은 참조를 다시 붙이면 복구되지만, 삭제된 값은 돌아오지 않습니다.
+janitor.help.status.notCounted.title=판정에 세지 않는 참조
+janitor.help.status.notCounted.body=필드 설정(Field configurations)과 컨텍스트(Contexts)는 상태 판정에 세지 않습니다. Jira는 커스텀 필드를 만들면 자동으로 모든 필드 설정에 넣고 기본 컨텍스트를 주기 때문에, 아무 데도 쓰지 않은 새 필드도 이 두 참조를 항상 갖습니다. 이것을 사용의 증거로 세면 "미사용" 라벨이 영원히 나오지 않습니다. 그래도 목록에서 빼지 않고 보여주는 이유는 필드 설정의 "필수" 표시가 삭제 판단에 실제로 필요하기 때문입니다 — 필수로 걸린 필드를 지우면 그 프로젝트의 이슈 생성이 막힙니다.
+janitor.help.status.confusion.title=고아 데이터와 방치를 혼동하지 마십시오
+janitor.help.status.confusion.body=둘 다 "화면에서 아무도 입력할 수 없는 상태"라 겉보기가 비슷한데 방향이 정반대이고 조치도 반대입니다. 고아 데이터는 데이터는 있는데 입구가 없는 것이고, 방치는 입구는 있는데 데이터가 없는 것입니다. 고아 데이터를 지우면 정보가 사라지고, 방치는 지워도 잃을 것이 없습니다.
+
+# --- 3. Field 칸 표시 ---
+janitor.help.badges.title=Field 칸에 붙는 표시
+janitor.help.badges.mark=표시
+janitor.help.badges.dup.name=삼각형 느낌표 — 이름 중복
+janitor.help.badges.dup.body=같은 이름의 커스텀 필드가 둘 이상 있습니다. 정리가 필요한 인스턴스에서는 흔한 일이고, 보통 그중 하나만 실제로 쓰입니다. 이 표시가 있으면 이름으로 판단하지 마시고 반드시 필드 ID로 대상을 확인하십시오. 이름이 같아도 값 수와 화면 수가 다르므로 목록에서 각 행의 숫자를 비교하면 어느 것이 실제로 쓰이는지 보입니다. 이 표시가 있으면 마지막 값 변경일도 신뢰할 수 없습니다.
+janitor.help.badges.locked.name=잠김 — 앱이 관리하는 필드
+janitor.help.badges.locked.body=앱이 이 필드를 잠갔습니다. Jira 자신도 이 필드의 삭제 메뉴를 숨기므로 이 도구의 상세 화면에도 삭제 링크를 두지 않았습니다. Sprint, Epic Link, Rank처럼 Jira Software가 만든 필드가 대표적입니다. 지우면 그 앱이 깨집니다. 이 필드들은 값을 앱 자체 테이블에 저장하는 경우가 많아서 "값 있는 이슈 수"가 0으로 보일 수 있는데, 그 0을 "안 쓰는 필드"로 읽으면 안 됩니다.
+janitor.help.badges.typeUnavailable.name=타입 없음 — 제공 앱이 비활성
+janitor.help.badges.typeUnavailable.body=이 필드의 타입을 제공하는 앱이 비활성이거나 삭제되었습니다. Jira는 이 상태의 필드를 커스텀 필드 목록에서 아예 숨기지만, 필드와 값은 DB에 그대로 남아 있습니다. 이 도구는 DB를 기준으로 목록을 만들기 때문에 그 필드들도 보여줍니다 — 앱을 지운 뒤 남은 잔해가 보통 정리 대상 1순위입니다. 다만 이 필드는 Jira API로 다룰 수 없어서 컨텍스트를 읽지 못하고, 앱을 다시 켜면 되살아납니다.
+janitor.help.badges.inaccurate.name=부정확 — 마지막 변경일을 믿을 수 없음
+janitor.help.badges.inaccurate.body=마지막 값 변경일 칸에 나옵니다. 이름이 중복된 필드라서 변경 이력이 다른 필드와 섞이는 경우입니다. 잘못된 날짜를 보여주는 대신 값을 비웠습니다.
+janitor.help.badges.unavailable.name=확인 불가 — 값 집계 실패
+janitor.help.badges.unavailable.body=값 있는 이슈 수 칸에 나옵니다. 집계 쿼리가 실패했다는 뜻입니다. 0으로 표시하면 "값이 없다"로 오해하고 지우게 되므로 일부러 숫자를 내지 않습니다. 실패 이유는 화면 아래 "확인 불가" 목록에 있습니다.
+
+# --- 4. 상세 화면 ---
+janitor.help.detail.title=상세 화면 (필드 사용처 — 필드명)
+janitor.help.detail.intro=목록에서 필드 이름을 클릭하면 그 필드가 어디서 쓰이는지 종류별로 나옵니다. 각 항목은 해당 Jira 관리 화면으로 연결되니, 참조를 정리하려면 링크를 눌러 그 화면에서 하시면 됩니다. 다른 화면에서 링크로 바로 들어오려면 주소 끝에 ?fieldId=customfield_10001 을 붙이면 됩니다.
+janitor.help.detail.summary.title=상단 요약
+janitor.help.detail.summary.body=상태 라벨, 값 있는 이슈 수, 값 행 수, 마지막 값 변경일, 타입, 컨텍스트(이 필드를 쓸 수 있는 프로젝트와 이슈 타입 범위)가 나옵니다. 컨텍스트는 "쓸 수 있는 범위"일 뿐 실제 사용의 증거가 아닙니다 — 전체 프로젝트로 열려 있어도 아무도 안 쓸 수 있습니다. 그 아래 파란 상자의 한 줄이 이 도구의 판단 요약입니다.
+janitor.help.detail.refs.title=참조 카테고리
+janitor.help.detail.refs.intro=제목 옆 괄호 안의 숫자가 그 종류에서 발견된 건수입니다. 예를 들어 "화면 (2)"는 이 필드가 두 개의 화면에 놓여 있다는 뜻입니다. 0건인 카테고리도 숨기지 않고 보여줍니다 — 0인지 못 찾은 것인지 구분되어야 하기 때문입니다.
+janitor.help.detail.refs.category=카테고리
+janitor.help.detail.refs.ifDeleted=이 필드를 지우면
+janitor.help.detail.refs.notEvidence=상태 판정에 세지 않음
+janitor.help.detail.cols.title=참조 표의 세 컬럼
+janitor.help.detail.cols.target=참조하고 있는 대상의 이름입니다. 링크가 걸려 있으면 그 대상의 Jira 관리 화면으로 갑니다. "동작이 깨짐" 배지가 붙은 항목이 상태를 위험으로 만든 원인입니다.
+janitor.help.detail.cols.where=대상 안에서 어디에 있는지입니다. 화면이면 탭 이름, 워크플로면 전이 이름과 위치(조건·검증기·전처리 함수·후처리 함수·전이 화면), 필드 설정이면 표시/숨김/필수, 필터면 작성자와 JQL 발췌가 나옵니다. 워크플로에서 "숫자 ID 일치 (추정)"이라고 나오면 서드파티 앱 설정에 필드 ID와 같은 숫자가 있었다는 뜻이고 확정된 참조가 아닙니다 — 해결책이나 상태 ID와 우연히 같을 수 있습니다.
+janitor.help.detail.cols.projects=그 참조가 결국 어느 프로젝트에 닿는지입니다. 화면의 경우 프로젝트 이름과 함께 이슈 타입 화면 스킴 › 화면 스킴 › 작업(생성/편집)까지 나옵니다. Jira 기본 화면은 화면 이름까지만 알려주기 때문에 "이 필드가 결국 어느 프로젝트의 어느 화면에 나타나는가"를 알려면 스킴을 여러 번 타고 들어가야 하는데, 그 체인을 대신 따라간 결과입니다. 비어 있으면 어느 프로젝트에도 연결되지 않은 설정이라는 뜻입니다.
+janitor.help.detail.numbers.title=목록의 숫자와 상세의 건수가 다를 때
+janitor.help.detail.numbers.body=목록의 "참조 합계"는 필드 설정과 컨텍스트까지 포함한 모든 참조의 수입니다. 상태 판정에 쓰이는 수는 그 둘을 뺀 값이라 더 작습니다. 목록에 화면·워크플로·필터·가젯 컬럼만 있는 것은 지면 때문이고, 권한·알림·이슈 보안 스킴 참조는 상세 화면과 CSV에 있습니다.
+
+# --- 참조 카테고리별 설명 ---
+janitor.help.ref.desc.managed=앱이 이 필드를 자기 것으로 등록하고 잠근 상태입니다. 어느 앱이 잠갔는지 이름이 나옵니다.
+janitor.help.ref.impact.managed=그 앱이 깨집니다. 예를 들어 Sprint를 지우면 Jira Software 보드가 동작하지 않습니다. Jira도 이 필드의 삭제를 막습니다.
+janitor.help.ref.desc.screen=이 필드가 놓인 화면입니다. 탭 이름과 그 화면이 닿는 프로젝트 체인이 함께 나옵니다.
+janitor.help.ref.impact.screen=그 화면에서 필드가 사라집니다. 값도 함께 삭제됩니다. 화면에서만 빼고 싶다면 삭제가 아니라 화면 설정을 고치십시오.
+janitor.help.ref.desc.fieldConfig=필드 설정에서의 표시·숨김·필수 여부입니다. Jira가 모든 필드를 자동으로 모든 필드 설정에 넣기 때문에 이 참조는 거의 항상 있습니다.
+janitor.help.ref.impact.fieldConfig=필수로 걸려 있으면 지우기 전에 반드시 확인하십시오. 필수 필드를 지우면 해당 프로젝트의 이슈 생성·편집이 막힐 수 있습니다.
+janitor.help.ref.desc.context=이 필드를 쓸 수 있는 프로젝트와 이슈 타입의 범위입니다. 필드를 만들면 기본 컨텍스트가 자동으로 생깁니다.
+janitor.help.ref.impact.context=범위 설정이 함께 사라집니다. 사용의 증거가 아니므로 이것만 있는 필드는 미사용으로 판정됩니다.
+janitor.help.ref.desc.workflow=워크플로의 조건, 검증기, 전·후처리 함수, 전이 화면에서 이 필드를 참조합니다. 전이 이름과 위치가 함께 나옵니다.
+janitor.help.ref.impact.workflow=그 전이의 동작이 조용히 깨집니다. 필수 필드 검증기는 검증을 건너뛰고, 값 설정 후처리 함수는 아무 일도 하지 않게 됩니다. 오류 메시지가 나오지 않아서 발견이 늦습니다.
+janitor.help.ref.desc.filter=저장된 검색(필터)의 JQL이 이 필드를 참조합니다. 필드 이름으로 쓴 경우와 cf[ID]로 쓴 경우를 모두 찾습니다.
+janitor.help.ref.impact.filter=그 필터가 깨져서 실행되지 않습니다. 필터를 대시보드나 가젯에서 쓰고 있으면 그것도 함께 멈춥니다.
+janitor.help.ref.desc.permissionScheme=권한 스킴이 이 필드의 값을 권한 대상자로 씁니다(User custom field value / Group custom field value).
+janitor.help.ref.impact.permissionScheme=그 권한 항목이 아무에게도 권한을 주지 않게 됩니다. 오류 없이 조용히 권한이 사라지므로 이 도구에서 가장 조심해야 하는 참조입니다.
+janitor.help.ref.desc.notificationScheme=알림 스킴이 이 필드의 값을 수신자로 씁니다.
+janitor.help.ref.impact.notificationScheme=그 알림이 아무에게도 가지 않게 됩니다. 메일이 안 온다는 문의가 한참 뒤에 들어옵니다.
+janitor.help.ref.desc.issueSecurityScheme=이슈 보안 스킴이 이 필드의 값을 보안 수준 대상자로 씁니다.
+janitor.help.ref.impact.issueSecurityScheme=해당 보안 수준의 이슈가 아무에게도 보이지 않게 될 수 있습니다.
+janitor.help.ref.desc.gadget=대시보드 가젯 설정에 이 필드가 들어 있습니다. 어느 대시보드의 어느 가젯인지 나옵니다.
+janitor.help.ref.impact.gadget=그 가젯이 오류를 내거나 빈 결과를 보여줍니다.
+
+# --- 5. 삭제 판단 ---
+janitor.help.decide.title=삭제 판단 — 세 갈래
+janitor.help.decide.intro=라벨과 숫자를 보고 아래 셋 중 하나로 분류하십시오. 판단은 관리자가 하고, 실행은 Jira 표준 화면에서 합니다.
+janitor.help.decide.safe.title=삭제해도 무방한 것
+janitor.help.decide.safe.body=미사용 라벨이고, 값 0 · 화면 0 · 워크플로 0 · 필터 0 · 가젯 0 · 스킴 0이며, 잠김 표시가 없는 필드입니다. 이 도구가 볼 수 있는 범위에서는 잃을 것이 없습니다. 다만 7장의 한계를 함께 보십시오 — Agile 보드 설정과 일부 서드파티 앱 설정은 확인되지 않았습니다. 실무에서는 목록을 CSV로 뽑아 관련 팀에 한 번 돌리고 일주일 정도 이의가 없으면 지우는 방식을 권합니다.
+janitor.help.decide.check.title=삭제 전 확인해야 할 것
+janitor.help.decide.check.body=고아 데이터, 방치, 그리고 필터·가젯 참조만 있는 필드입니다. 고아 데이터는 값이 아직 필요한지(감사·집계·과거 이력) 확인하고, 필요 없으면 CSV나 JQL로 먼저 뽑아 두십시오. 방치는 삭제보다 화면에서 제거를 먼저 하십시오. 필드 설정에 "필수"로 걸려 있는지도 상세 화면에서 확인하십시오 — 필수 필드를 지우면 이슈 생성이 막힐 수 있습니다. 이름이 중복된 필드는 반드시 ID로 대상을 다시 확인하십시오.
+janitor.help.decide.stop.title=지금 지우면 안 되는 것
+janitor.help.decide.stop.body=활성 라벨은 정상 사용 중이므로 대상이 아닙니다. 위험 라벨 중 앱이 잠근 필드(Sprint, Epic Link, Rank 등)는 그 앱을 쓰는 동안 손대지 마십시오. 나머지 위험 라벨은 참조를 먼저 정리하면 지울 수 있게 됩니다 — 상세 화면에서 워크플로 전이나 스킴 항목을 찾아 그것을 먼저 제거하고 다시 스캔하십시오. 라벨이 방치나 미사용으로 내려오면 그때 판단하십시오.
+janitor.help.decide.steps.title=권장 정리 절차
+janitor.help.decide.steps.1=스캔을 실행하고 CSV로 내보내 현재 상태를 기록해 둡니다. 정리 전 스냅샷이 있으면 나중에 무엇을 왜 지웠는지 설명할 수 있습니다.
+janitor.help.decide.steps.2=미사용부터 시작합니다. 위험이나 활성부터 손대면 시간만 쓰고 얻는 것이 없습니다.
+janitor.help.decide.steps.3=지울 후보를 정하면 상세 화면을 열어 참조가 정말 0인지 눈으로 확인합니다. "확인 불가" 목록에 그 필드가 있으면 후보에서 빼십니다.
+janitor.help.decide.steps.4=지우기 전에 DB 백업이 있는지 확인합니다. 커스텀 필드 삭제는 Jira에서 되돌릴 수 없습니다.
+janitor.help.decide.steps.5=Jira 표준 화면에서 한 번에 몇 개씩만 지우고, 그 사이 이슈 생성·편집과 주요 워크플로 전이를 시험해 봅니다. 한 번에 수십 개를 지우면 무엇이 원인인지 찾을 수 없습니다.
+janitor.help.decide.steps.6=지운 뒤 다시 스캔해 "확인 불가" 목록과 남은 필드 수를 확인합니다. 다음 정리 때 이 기록이 시작점이 됩니다.
+janitor.help.decide.orphanWarning=커스텀 필드를 지우면 그 필드의 값도 함께 영구히 삭제됩니다. Jira에는 되돌리기가 없습니다. 특히 고아 데이터 라벨은 화면에 안 보인다는 이유로 "안 쓰는 필드"처럼 보이지만 실제로는 데이터가 남아 있는 상태입니다.
+
+# --- 6. 스캔 ---
+janitor.help.scan.title=스캔이 동작하는 방식
+janitor.help.scan.body=이 화면의 숫자는 실시간 조회가 아니라 마지막 스캔 결과입니다. 관리자 도구는 예측 가능한 것이 실시간보다 낫다고 보아 그렇게 만들었습니다.
+janitor.help.scan.when.title=언제 다시 스캔해야 하나
+janitor.help.scan.when.body=화면·워크플로·필터·스킴을 바꿨거나 필드를 지운 뒤에는 다시 스캔해야 숫자가 맞습니다. 화면 오른쪽 위에 마지막 스캔 시각이 항상 표시됩니다. 스캔이 도는 중에 다시 누르면 중복 실행하지 않고 진행률만 알려줍니다. 대규모 인스턴스에서는 커스텀 필드 값 전체를 읽으므로 업무 시간 외에 실행하시기를 권합니다.
+janitor.help.scan.cache.title=결과가 저장되는 곳
+janitor.help.scan.cache.body=결과는 메모리에만 있고 Jira를 재시작하면 사라집니다. 그때는 다시 스캔하면 됩니다. Data Center에서 노드가 여럿이면 노드별로 결과가 갈리므로 화면의 스캔 시각을 꼭 함께 보십시오.
+janitor.help.scan.csv.title=CSV 내보내기
+janitor.help.scan.csv.body=화면에 보이는 모든 컬럼에 권한·알림·이슈 보안 스킴 참조 수와 잠김 여부까지 더해 내보냅니다. 스프레드시트에서 정리 계획을 세우거나 관련 팀에 돌릴 때 쓰십시오. Excel에서 바로 열리도록 인코딩을 맞춰 두었습니다.
+janitor.help.scan.inject.title=커스텀 필드 관리 화면의 배지
+janitor.help.scan.inject.body=관리 > 이슈 > 커스텀 필드 화면의 각 행에도 상태 배지와 값 건수, 사용처 링크가 붙습니다. 필드를 보다가 궁금해진 자리에서 바로 넘어올 수 있게 한 것입니다. 스캔한 적이 없으면 아무것도 붙지 않습니다.
+janitor.help.scan.problems.title=확인 불가 목록
+janitor.help.scan.problems.body=목록 화면 맨 아래에 나옵니다. 스캔이 읽지 못한 항목입니다(예: JQL 파싱이 안 되는 깨진 필터). 여기에 올라온 것은 "참조 없음"이 아니라 "모름"입니다. 지울 후보에 있는 필드가 이 목록과 관련되어 있으면 후보에서 빼십시오.
+
+# --- 7. 한계 ---
+janitor.help.limits.title=이 도구가 보지 못하는 것
+janitor.help.limits.body=참조가 0으로 나왔다고 해서 삭제해도 안전하다는 증명은 아닙니다. 위 문구에 적힌 범위는 확인되지 않았습니다. 도구가 자기 한계를 말하지 않으면 관리자가 잘못된 확신으로 필드를 지우기 때문에 화면과 이 문서에 같은 내용을 적어 두었습니다. 마지막 값 변경일도 필드 이름 기반이라 이름이 바뀌었거나 중복된 필드에서는 부정확합니다.
+
+# --- 8. 자주 겪는 상황 ---
+janitor.help.workflow.title=자주 겪는 상황
+janitor.help.faq.q1=Jira 커스텀 필드 화면에는 없는 필드가 이 목록에는 있습니다.
+janitor.help.faq.a1=타입을 제공하는 앱이 비활성이면 Jira는 그 필드를 목록에서 숨깁니다. 이 도구는 DB를 기준으로 하므로 그 필드도 보여줍니다. "타입 없음" 표시가 붙은 것들이 그런 경우이고, 앱을 지운 뒤 남은 잔해라 보통 정리 대상 1순위입니다.
+janitor.help.faq.q2=Sprint나 Story Points 같은 Jira 기본 필드가 왜 목록에 나오나요?
+janitor.help.faq.a2=그 필드들은 기본 필드가 아니라 Jira Software 앱이 만든 커스텀 필드입니다. 진짜 기본 필드(요약, 담당자, 우선순위, 상태 등)는 이 목록에 나올 수 없습니다. Sprint나 Epic Link처럼 앱이 잠근 것들은 위험 라벨과 잠김 표시가 함께 붙습니다.
+janitor.help.faq.q3=값이 있는 것을 아는데 값 있는 이슈 수가 0으로 나옵니다.
+janitor.help.faq.a3=값을 앱 자체 테이블에 저장하는 타입(Rank 등)이면 이 도구의 집계에 잡히지 않습니다. 그런 필드는 대개 잠김 표시가 함께 있으니 그 표시를 먼저 보십시오. 잠김도 아니고 타입 없음도 아닌데 0이라면 "확인 불가" 목록을 확인하십시오.
+janitor.help.faq.q4=같은 이름의 필드가 여러 개인데 무엇을 지워야 할지 모르겠습니다.
+janitor.help.faq.a4=목록에서 각 행의 값 있는 이슈 수와 화면 수를 비교하십시오. 보통 하나만 값과 화면을 갖고 나머지는 0입니다. 그 0인 것들이 후보입니다. 삭제할 때는 반드시 필드 ID로 대상을 확인하십시오 — 삭제 화면에서 이름만 보고 고르면 엉뚱한 것을 지웁니다.
+janitor.help.faq.q5=위험 라벨을 없애고 싶습니다.
+janitor.help.faq.a5=상세 화면에서 "동작이 깨짐" 배지가 붙은 항목을 찾아 링크를 눌러 그 참조를 제거하십시오. 워크플로라면 해당 전이의 조건·검증기·후처리 함수를, 스킴이라면 그 항목을 지우면 됩니다. 그 뒤 다시 스캔하면 라벨이 내려갑니다. 앱이 잠근 필드는 이 방법으로 내려가지 않고, 내려가게 만들어서도 안 됩니다.
+janitor.help.faq.q6=필드를 지웠는데 목록에 그대로 있습니다.
+janitor.help.faq.a6=목록은 마지막 스캔 결과입니다. "지금 스캔"을 다시 누르십시오.

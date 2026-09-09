@@ -1,0 +1,210 @@
+#* 상세 화면 — 기획서 6.2 "필드 사용처"
+
+   참조를 카테고리별 트리로 보여주고, 각 항목에 해당 Jira 관리 화면 링크를 단다.
+   기획서 결정 1: 여기서 지우지 않는다. 관리자를 표준 화면으로 데려다 준다. *#
+#set ($field = $action.selectedField)
+#set ($status = $field.status)
+<html>
+<head>
+    <title>$action.text("janitor.fields.detail.title", $field.name)</title>
+    <meta name="decorator" content="admin">
+    <meta name="admin.active.section" content="admin_issues_menu/element_options_section/fields_section">
+    <meta name="admin.active.tab" content="cf-usage-link">
+    <style type="text/css">
+        .janitor-summary { display: flex; flex-wrap: wrap; gap: 24px; margin: 12px 0 20px; }
+        .janitor-summary dl { margin: 0; }
+        .janitor-summary dt { color: #707070; font-size: 12px; text-transform: uppercase; margin: 0 0 2px; }
+        .janitor-summary dd { margin: 0; font-size: 16px; }
+        .janitor-verdict { margin: 0 0 20px; }
+        .janitor-refgroup { margin-bottom: 24px; }
+        .janitor-refgroup h3 { margin-bottom: 6px; }
+        .janitor-meta { color: #707070; font-size: 12px; }
+        .janitor-cellnote { color: #6b778c; }
+        .janitor-cellwarn { color: #974f0c; }
+        .janitor-lang { display: inline-flex; border: 1px solid #c1c7d0; border-radius: 3px; overflow: hidden; }
+        .janitor-lang a { padding: 4px 12px; font-size: 13px; text-decoration: none; color: #42526e; background: #fff; }
+        .janitor-lang a:hover { background: #f4f5f7; text-decoration: none; }
+        .janitor-lang a.janitor-lang-on { background: #0052cc; color: #fff; font-weight: bold; }
+        .janitor-lang a + a { border-left: 1px solid #c1c7d0; }
+        .janitor-chain { color: #505050; font-size: 12px; }
+        .janitor-actions { margin: 20px 0; display: flex; gap: 8px; }
+        .janitor-none { color: #707070; }
+    </style>
+</head>
+<body>
+
+<div class="aui-page-header">
+    <div class="aui-page-header-inner">
+        <div class="aui-page-header-main">
+            <h2>
+                $action.text("janitor.fields.detail.heading")
+                &mdash; $action.escape($field.name)
+                <span class="janitor-meta">($field.fieldId)</span>
+            </h2>
+        </div>
+        <div class="aui-page-header-actions">
+            <div class="janitor-lang">
+                <a href="$action.koUrl" #if($action.korean)class="janitor-lang-on"#end>한국어</a>
+                <a href="$action.enUrl" #if(!$action.korean)class="janitor-lang-on"#end>English</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<p><a href="$action.selfUrl">&laquo; $action.text("janitor.fields.detail.backToList")</a></p>
+
+<div class="janitor-summary">
+    <dl>
+        <dt>$action.text("janitor.fields.column.status")</dt>
+        <dd>
+            #if ($status.lozengeType == "")
+                <span class="aui-lozenge">$action.text($status.i18nKey)</span>
+            #else
+                <span class="aui-lozenge aui-lozenge-${status.lozengeType}">$action.text($status.i18nKey)</span>
+            #end
+        </dd>
+    </dl>
+    <dl>
+        <dt>$action.text("janitor.fields.column.issuesWithValue")</dt>
+        <dd>#if ($field.valueCountUnavailable)<span class="janitor-cellwarn">$action.text("janitor.fields.unavailable")</span>#else$field.issuesWithValue#end</dd>
+    </dl>
+    <dl>
+        <dt>$action.text("janitor.fields.column.valueRows")</dt>
+        <dd>$field.valueRows</dd>
+    </dl>
+    <dl>
+        <dt>$action.text("janitor.fields.column.lastChange")</dt>
+        <dd>
+            #if ($field.lastValueChangeAmbiguous)
+                <span class="janitor-cellwarn">$action.text("janitor.fields.inaccurate")</span>
+            #elseif ($field.lastValueChange)
+                $action.formatDay($field.lastValueChange)
+            #else
+                <span class="janitor-cellnote">-</span>
+            #end
+        </dd>
+    </dl>
+    <dl>
+        <dt>$action.text("janitor.fields.column.type")</dt>
+        <dd>
+            $action.escape($field.typeName)
+            #if (!$field.typeAvailable)
+                <div class="janitor-dup">$action.text("janitor.fields.typeUnavailableShort")</div>
+            #end
+        </dd>
+    </dl>
+    <dl>
+        <dt>$action.text("janitor.fields.detail.context")</dt>
+        <dd>
+            #if ($field.globalContext)
+                $action.text("janitor.fields.detail.contextGlobal")
+            #elseif ($field.contextProjects.size() > 0)
+                #foreach ($project in $field.contextProjects)$action.escape($project)#if($foreach.hasNext), #end#end
+            #else
+                <span class="janitor-cellnote">-</span>
+            #end
+            #if ($field.contextIssueTypes.size() > 0)
+                <div class="janitor-meta">
+                    #foreach ($issueType in $field.contextIssueTypes)$action.escape($issueType)#if($foreach.hasNext), #end#end
+                </div>
+            #end
+        </dd>
+    </dl>
+</div>
+
+#if ($field.duplicateName)
+    <div class="aui-message aui-message-warning">
+        <p>$action.text("janitor.fields.duplicateName")</p>
+    </div>
+#end
+
+#if (!$field.typeAvailable)
+    <div class="aui-message aui-message-warning">
+        <p>$action.text("janitor.fields.typeUnavailable")</p>
+    </div>
+#end
+
+<div class="aui-message #if($status.code == 'at-risk')aui-message-error#elseif($status.code == 'orphan-data')aui-message-warning#else aui-message-info#end janitor-verdict">
+    <p>$action.text($field.verdictI18nKey)</p>
+</div>
+
+#if ($field.locked)
+    <div class="aui-message aui-message-error">
+        <p>$action.text("janitor.fields.locked")</p>
+    </div>
+#end
+
+<div class="janitor-actions">
+    <a class="aui-button" href="${action.contextPath}$field.configureUrl">$action.text("janitor.fields.detail.configure")</a>
+    #* 잠긴 필드는 Jira 자신도 삭제 메뉴를 숨긴다. 링크를 두면 눌러도 안 되는 곳으로
+       보내는 거짓말이 된다. *#
+    #if (!$field.locked)
+        <a class="aui-button" href="${action.contextPath}$field.deleteUrl">$action.text("janitor.fields.detail.deleteInJira")</a>
+    #end
+</div>
+
+#macro (refgroup $typeName $type)
+    #set ($refs = $field.getRefs($typeName))
+    <div class="janitor-refgroup">
+        <h3>$action.text($type.i18nKey) ($refs.size())</h3>
+        #if ($refs.size() == 0)
+            <p class="janitor-none">$action.text("janitor.fields.detail.noReference")</p>
+        #else
+            <table class="aui">
+                <thead>
+                <tr>
+                    <th>$action.text("janitor.fields.detail.target")</th>
+                    <th>$action.text("janitor.fields.detail.where")</th>
+                    <th>$action.text("janitor.fields.detail.projects")</th>
+                </tr>
+                </thead>
+                <tbody>
+                #foreach ($ref in $refs)
+                    <tr>
+                        <td>
+                            #if ($ref.adminUrl)
+                                <a href="${action.contextPath}$ref.adminUrl">$action.escape($ref.targetName)</a>
+                            #else
+                                $action.escape($ref.targetName)
+                            #end
+                            #if ($ref.risky)
+                                <span class="aui-lozenge aui-lozenge-error">$action.text("janitor.fields.detail.risky")</span>
+                            #end
+                        </td>
+                        <td>
+                            #if ($ref.detailI18nKey)
+                                $action.text($ref.detailI18nKey)
+                                #if ($ref.detail)<div class="janitor-meta">$action.escape($ref.detail)</div>#end
+                            #elseif ($ref.detail)
+                                $action.escape($ref.detail)
+                            #else
+                                <span class="janitor-cellnote">-</span>
+                            #end
+                        </td>
+                        <td class="janitor-chain">
+                            #if ($ref.projects.size() == 0)
+                                <span class="janitor-cellnote">-</span>
+                            #else
+                                #foreach ($project in $ref.projects)
+                                    <div>$action.escape($project)</div>
+                                #end
+                            #end
+                        </td>
+                    </tr>
+                #end
+                </tbody>
+            </table>
+        #end
+    </div>
+#end
+
+#foreach ($type in $action.referenceTypes)
+    #refgroup($type.name() $type)
+#end
+
+<div class="aui-message aui-message-info">
+    <p>$action.text("janitor.fields.limitation")</p>
+</div>
+
+</body>
+</html>

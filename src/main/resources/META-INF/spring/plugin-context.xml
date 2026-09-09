@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 빈은 없다. 이 파일의 목적은 플러그인에 Spring 컨테이너를 만들어 주는 것뿐이다.
+     web-item의 condition 객체가 이 컨테이너로 주입되기 때문에 컨테이너가 없으면
+     web fragment 모듈이 로드되지 않는다.
+
+     Jira 매니저는 ComponentAccessor로 직접 얻는다(주입 경로를 하나 줄이면
+     조용히 깨질 곳이 하나 줄어든다). 그래서 여기 등록할 빈이 없다. -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd">
+</beans>

@@ -1,0 +1,268 @@
+# Custom Field Janitor - English (default bundle)
+# 이 파일이 원본이다. src/main/resources/janitor*.properties 는 tools/make-i18n.py 로 생성한다.
+
+janitor.fields.menu.label=Field usage
+janitor.fields.menu.tooltip=See where each custom field is actually used
+
+janitor.fields.page.title=Custom field usage
+janitor.fields.page.intro=For each custom field this page shows how many issues hold a value, and every screen, field configuration, workflow, filter, scheme and dashboard gadget that references it. Nothing is deleted here - each item links to the standard Jira administration screen.
+
+janitor.fields.limitation=Not included: Agile board configuration (card layout, quick filters, estimation field, swimlanes) and settings stored by third-party apps in their own tables. "No references" here does not prove a field is safe to delete.
+janitor.fields.metric.note=Issues with value counts distinct issues. Value rows counts stored rows - a multi-value field stores several rows for one issue, so the two numbers differ. Counts come from the customfieldvalue and label tables. A field type that keeps its data in its own app tables (Rank, and some third-party types) still shows 0.
+
+janitor.fields.action.scanNow=Scan now
+janitor.fields.action.csv=Export CSV
+janitor.fields.lastScan=Last scan
+
+janitor.fields.empty.neverScanned=No scan has run on this node yet. Press "Scan now" to build the report.
+janitor.fields.empty.largeInstance=On a large instance the scan reads every custom field value row. Run it outside business hours.
+
+janitor.fields.filter.search=Search
+janitor.fields.filter.searchPlaceholder=name or customfield_10001
+janitor.fields.filter.status=Status
+janitor.fields.filter.all=All
+janitor.fields.filter.type=Type
+janitor.fields.filter.typePlaceholder=e.g. Number
+
+janitor.fields.column.status=Status
+janitor.fields.column.name=Field
+janitor.fields.column.type=Type
+janitor.fields.column.issuesWithValue=Issues with value
+janitor.fields.column.valueRows=Value rows
+janitor.fields.column.lastChange=Last value change
+janitor.fields.column.screens=Screens
+janitor.fields.column.workflows=Workflows
+janitor.fields.column.filters=Filters
+janitor.fields.column.gadgets=Gadgets
+janitor.fields.column.totalReferences=References
+
+janitor.fields.duplicateName=Another custom field has the same name. Always act on the field ID, not the name.
+janitor.fields.inject.values={0} issues with value
+janitor.fields.inject.link=Usage
+janitor.fields.unavailable=unavailable
+janitor.fields.lockedShort=locked
+janitor.fields.locked=An app locked this field. Jira itself hides the delete action for it, so this page does not offer one either. Deleting it would break that app - for example removing Sprint breaks Jira Software boards. Its values may also live in the app's own tables, which is why the value count can read 0.
+janitor.fields.typeUnavailableShort=type unavailable
+janitor.fields.typeUnavailable=The app that provides this field type is disabled or uninstalled. Jira cannot show or edit the field, but the field and its values are still in the database. Contexts could not be read for this field. Fields like this are usually leftovers worth cleaning up.
+janitor.fields.inaccurate=inaccurate
+
+janitor.fields.status.unused=Unused
+janitor.fields.status.abandoned=Neglected
+janitor.fields.status.orphanData=Orphan data
+janitor.fields.status.active=Active
+janitor.fields.status.atRisk=At risk
+
+janitor.fields.verdict.unused=No issue holds a value and no configuration references this field. Safe to delete.
+janitor.fields.verdict.abandoned=This field sits on screens or in configurations but nobody enters a value. Consider removing it from the screens rather than deleting it.
+janitor.fields.verdict.orphanData=Issues hold values but the field is on no screen. Deleting it destroys that data.
+janitor.fields.verdict.active=In normal use.
+janitor.fields.verdict.atRisk=An app locks this field, or a workflow or a permission, notification or issue security scheme references it. Deleting it breaks that behaviour silently.
+
+janitor.fields.ref.managed=Managed by an app
+janitor.fields.ref.screen=Screens
+janitor.fields.ref.fieldConfig=Field configurations
+janitor.fields.ref.context=Contexts
+janitor.fields.ref.workflow=Workflows
+janitor.fields.ref.filter=Filters
+janitor.fields.ref.permissionScheme=Permission schemes
+janitor.fields.ref.notificationScheme=Notification schemes
+janitor.fields.ref.issueSecurityScheme=Issue security schemes
+janitor.fields.ref.gadget=Dashboard gadgets
+
+janitor.fields.wf.transitionScreen=Transition screen
+janitor.fields.wf.condition=Condition
+janitor.fields.wf.validator=Validator
+janitor.fields.wf.preFunction=Pre-function
+janitor.fields.wf.postFunction=Post-function
+janitor.fields.wf.stepFunction=Step function
+janitor.fields.wf.numericGuess=Numeric ID match (unconfirmed)
+
+janitor.fields.stage.fields=Reading custom fields
+janitor.fields.stage.values=Counting values
+janitor.fields.stage.managed=Checking app-managed fields
+janitor.fields.stage.screens=Scanning screens
+janitor.fields.stage.fieldConfigs=Scanning field configurations
+janitor.fields.stage.contexts=Scanning contexts
+janitor.fields.stage.workflows=Scanning workflows
+janitor.fields.stage.filters=Scanning filters
+janitor.fields.stage.schemes=Scanning permission, notification and issue security schemes
+janitor.fields.stage.gadgets=Scanning dashboard gadgets
+janitor.fields.stage.finishing=Finishing
+
+janitor.fields.problems.title=Could not verify
+janitor.fields.problems.intro=These items could not be read. Treat them as unknown, not as "no reference".
+janitor.fields.problems.area=Stage
+janitor.fields.problems.target=Item
+janitor.fields.problems.message=Reason
+
+janitor.fields.detail.title=Field usage - {0}
+janitor.fields.detail.heading=Field usage
+janitor.fields.detail.backToList=Back to the field list
+janitor.fields.detail.context=Context
+janitor.fields.detail.contextGlobal=All projects
+janitor.fields.detail.configure=Configure this field in Jira
+janitor.fields.detail.deleteInJira=Delete this field in Jira
+janitor.fields.detail.noReference=No reference found.
+janitor.fields.detail.target=Target
+janitor.fields.detail.where=Where
+janitor.fields.detail.projects=Projects
+janitor.fields.detail.risky=breaks behaviour
+janitor.fields.detail.notFound=Could not show details for {0}. Run a scan first, or the field may no longer exist.
+
+# ---------------------------------------------------------------------------
+# User manual (/secure/admin/CustomFieldUsageHelp.jspa)
+# ---------------------------------------------------------------------------
+janitor.fields.page.helpLink=How to read this screen →
+
+janitor.help.title=Custom field usage - user manual
+janitor.help.backToList=Back to Custom field usage
+janitor.help.toc=Contents
+janitor.help.intro=This tool exists to answer one question: can this custom field be deleted? For each field it checks three directions - data, configuration and queries - and sums them up in a single status label. Do not decide from the label alone; read the numbers next to it. This page explains what each number counted and, just as importantly, what it did not.
+janitor.help.readOnly=This app deletes nothing. Every item links out to the standard Jira administration screen, and the actual change is made there by an administrator. The scan button only reads.
+
+janitor.help.col.column=Column
+janitor.help.col.meaning=Meaning
+
+janitor.help.columns.title=Columns on the list screen
+janitor.help.columns.status=One-line verdict combining all three directions. Explained in section 2. It is not stored - it is recalculated from the scanned numbers every time.
+janitor.help.columns.field=The field name with its field ID underneath. Every judgement in this tool is made on the ID, never the name: an instance that needs cleaning up normally has several fields sharing a name, and acting on the name deletes the wrong one. Click the name to open the field detail screen. Marks next to the name are explained in section 3.
+janitor.help.columns.type=The field type. If the app providing the type is disabled there is no human-readable name, so the raw type key is shown instead (for example com.pyxis.greenhopper.jira:gh-sprint), with a "type unavailable" mark below it.
+janitor.help.columns.issuesWithValue=How many issues hold a value in this field. It counts distinct issues, so an issue with several values still counts as one. This is the primary metric of this tool - the number the standard Jira administration screen does not give you.
+janitor.help.columns.valueRows=How many value rows are stored. A multi-select or multi-user field stores several rows for one issue, so this is larger than the issue count. The two numbers differing is not an error. Use the issue count to judge scale and the row count to judge data volume.
+janitor.help.columns.lastChange=When a value in this field last changed. A secondary metric. Jira records the field name of the time in the change history rather than the field ID, so for fields with duplicate names the history is mixed and cannot be trusted. In that case "inaccurate" is shown instead of a date.
+janitor.help.columns.screens=How many screens this field sits on. If it is on no screen, nobody can enter a value and nobody sees it on an issue. This number carries special weight in the status judgement.
+janitor.help.columns.workflows=How many workflow references were found. Transition screens, conditions, validators and pre/post functions all count. A field used in several transitions counts once per transition.
+janitor.help.columns.filters=How many saved filters reference this field. Both name references and cf[ID] references in JQL are counted.
+janitor.help.columns.gadgets=How many dashboard gadgets hold this field in their configuration.
+janitor.help.columns.totalReferences=The sum of every reference type. It includes field configurations and contexts, so it differs from the number used for the status judgement - see section 2.
+janitor.help.columns.sortNote=Click a column heading to sort. The default order puts cleanup candidates first (Unused, Neglected, Orphan data, Active, At risk), so you can work down from the top. The search box matches both field name and field ID.
+
+janitor.help.status.title=Status labels
+janitor.help.status.intro=There are five labels and the set does not grow. They are tested top to bottom in the order below, and the first match wins.
+janitor.help.status.condition=Condition
+janitor.help.status.meaning=Meaning
+janitor.help.status.action=Recommended action:
+
+janitor.help.status.cond.unused=values 0 · screens 0 · usage-evidence references 0
+janitor.help.status.desc.unused=No issue holds a value and no screen, workflow, filter, gadget or scheme references it. As far as this tool can see, nobody uses this field.
+janitor.help.status.act.unused=First cleanup candidate. Read the limits in section 7 first - Agile board configuration and some third-party app settings are outside what this tool can see.
+
+janitor.help.status.cond.abandoned=values 0 · (on a screen, or referenced by a filter or gadget)
+janitor.help.status.desc.abandoned=It sits on screens or in configurations but nobody has ever entered a value. Being on a screen with zero values means users are ignoring it. A field with no screen but a filter or gadget reference also lands here - nobody can fill it in, yet deleting it breaks something.
+janitor.help.status.act.abandoned=Remove it from the screens before deleting it. There are no values to lose, and if nobody complains for a while you can delete it then. Clean up filter references first if there are any.
+
+janitor.help.status.cond.orphan-data=values > 0 · screens 0
+janitor.help.status.desc.orphan-data=Issues hold values but the field is on no screen. It used to be on a screen, data accumulated, and later it was removed from the screens. Opening an issue does not show the field, so it looks like an unused field to the eye - but the data is still there. The standard Jira screen only shows "0 screens", which makes this the state most easily mistaken for an unused field.
+janitor.help.status.act.orphan-data=Deleting it destroys that data permanently. Check whether the data is still needed. If it is, put the field back on a screen; if not, export it via CSV or JQL first and then delete.
+
+janitor.help.status.cond.active=values > 0 · screens > 0
+janitor.help.status.desc.active=It is on a screen and values keep arriving. In normal use.
+janitor.help.status.act.active=Leave it alone. Not a cleanup target.
+
+janitor.help.status.cond.at-risk=locked by an app, or referenced by a workflow / permission / notification / issue security scheme
+janitor.help.status.desc.at-risk=This label is applied first, regardless of values and screens. These references break behaviour rather than layout when the field is deleted, and they break silently. A permission entry pointing at a missing field stops granting permission to anyone instead of raising an error, and a workflow post function simply skips setting the value. Fields locked by an app (Sprint, Epic Link and so on) land here too.
+janitor.help.status.act.at-risk=This label means "there is something to clean up first", not "never delete". Open the detail screen, remove the references it lists, and the label drops. Fields locked by an app are the exception - leave them alone while you still use that app.
+
+janitor.help.status.order.title=Why the order matters
+janitor.help.status.order.body=At risk is tested first because it must not be missed, not because it is the most severe. The other labels can be guessed from the value and screen counts, but workflow and scheme references leave no trace in the standard Jira screens - if the label does not tell you, nobody will. Measured by what cannot be undone, Orphan data is actually the more dangerous one: a broken reference can be reattached, a deleted value cannot.
+janitor.help.status.notCounted.title=References that do not count towards the judgement
+janitor.help.status.notCounted.body=Field configurations and Contexts are not counted. Jira automatically adds every new custom field to every field configuration and gives it a default context, so even a field nobody uses always has those two references. Counting them as evidence of use would mean the Unused label could never appear. They are still shown, because the "required" flag in a field configuration genuinely matters for a deletion decision - deleting a required field can block issue creation in that project.
+janitor.help.status.confusion.title=Do not confuse Orphan data with Neglected
+janitor.help.status.confusion.body=Both mean "nobody can enter a value from a screen", so they look similar - but they point in opposite directions and call for opposite actions. Orphan data is data with no way in; Neglected is a way in with no data. Deleting orphan data loses information; deleting a neglected field loses nothing.
+
+janitor.help.badges.title=Marks in the Field column
+janitor.help.badges.mark=Mark
+janitor.help.badges.dup.name=Warning triangle - duplicate name
+janitor.help.badges.dup.body=Another custom field has the same name. This is common in an instance that needs cleaning up, and usually only one of them is actually in use. When you see this mark, do not act on the name - confirm the target by field ID. Comparing the value and screen counts of each row shows which one is really used. This mark also means the last value change date cannot be trusted.
+janitor.help.badges.locked.name=locked - managed by an app
+janitor.help.badges.locked.body=An app locked this field. Jira itself hides the delete action for it, so this tool does not offer a delete link on the detail screen either. Sprint, Epic Link and Rank from Jira Software are typical examples. Deleting one breaks that app. These fields often store their values in the app's own tables, so "issues with value" can read 0 - do not read that 0 as "unused".
+janitor.help.badges.typeUnavailable.name=type unavailable - provider app disabled
+janitor.help.badges.typeUnavailable.body=The app providing this field type is disabled or uninstalled. Jira hides fields in this state from its own custom field list, but the field and its values remain in the database. This tool builds its list from the database, so it shows them - leftovers from a removed app are usually the first thing worth cleaning up. Note that Jira cannot handle such a field through its API, so contexts could not be read, and re-enabling the app brings it back to life.
+janitor.help.badges.inaccurate.name=inaccurate - last change date cannot be trusted
+janitor.help.badges.inaccurate.body=Shown in the Last value change column. The field has a duplicate name, so its change history is mixed with another field. Rather than showing a wrong date, the value is left out.
+janitor.help.badges.unavailable.name=unavailable - value count failed
+janitor.help.badges.unavailable.body=Shown in the Issues with value column. The counting query failed. Showing 0 would be read as "no values" and lead to deletion, so no number is given on purpose. The reason is in the "Could not verify" list at the bottom of the screen.
+
+janitor.help.detail.title=The detail screen (Field usage - field name)
+janitor.help.detail.intro=Clicking a field name in the list shows where that field is used, grouped by category. Every item links to the relevant Jira administration screen, so to clean up a reference you follow the link and do it there. To link straight in from elsewhere, append ?fieldId=customfield_10001 to the URL.
+janitor.help.detail.summary.title=The summary at the top
+janitor.help.detail.summary.body=Status label, issues with value, value rows, last value change, type, and context (which projects and issue types this field applies to). Context is only the range in which the field can be used, not evidence that it is - a field can be open to all projects and used by nobody. The single line in the coloured box below is this tool's verdict.
+janitor.help.detail.refs.title=Reference categories
+janitor.help.detail.refs.intro=The number in brackets after each heading is how many references of that kind were found. "Screens (2)" means the field sits on two screens. Categories with zero are still shown - you need to be able to tell "none" from "not looked at".
+janitor.help.detail.refs.category=Category
+janitor.help.detail.refs.ifDeleted=If you delete the field
+janitor.help.detail.refs.notEvidence=Not counted towards the status
+janitor.help.detail.cols.title=The three columns in a reference table
+janitor.help.detail.cols.target=The name of the thing holding the reference. Where a link is present it opens that object's Jira administration screen. Items with the "breaks behaviour" badge are what made the status At risk.
+janitor.help.detail.cols.where=Where inside that object. For a screen, the tab name; for a workflow, the transition name and the position (condition, validator, pre-function, post-function, transition screen); for a field configuration, visible/hidden/required; for a filter, the author and a JQL excerpt. A workflow entry reading "Numeric ID match (unconfirmed)" means a third-party app setting contained a number equal to the field ID - it is not a confirmed reference, since resolution and status IDs share the same number range.
+janitor.help.detail.cols.projects=Which projects the reference ultimately reaches. For screens the project name is shown with the chain issue type screen scheme › screen scheme › operation (create/edit). The standard Jira screen only names the screen, so answering "which project does this field actually appear in" normally means walking several schemes by hand - this is the result of walking that chain for you. Empty means the configuration is not connected to any project.
+janitor.help.detail.numbers.title=When the list count and the detail count differ
+janitor.help.detail.numbers.body=The list column "References" is the total of every reference, including field configurations and contexts. The number used for the status judgement excludes those two and is therefore smaller. The list only has screen, workflow, filter and gadget columns for space reasons; permission, notification and issue security scheme references are on the detail screen and in the CSV export.
+
+janitor.help.ref.desc.managed=An app registered this field as its own and locked it. The name of the app is shown.
+janitor.help.ref.impact.managed=That app breaks. Deleting Sprint, for example, stops Jira Software boards from working. Jira blocks the deletion of such fields.
+janitor.help.ref.desc.screen=A screen the field sits on. The tab name and the project chain that screen reaches are shown.
+janitor.help.ref.impact.screen=The field disappears from that screen, and its values are deleted with it. If you only want it off the screen, change the screen configuration instead of deleting the field.
+janitor.help.ref.desc.fieldConfig=Whether the field is visible, hidden or required in a field configuration. Jira adds every field to every field configuration automatically, so this reference is almost always present.
+janitor.help.ref.impact.fieldConfig=If it is marked required, check before deleting. Deleting a required field can block issue creation and editing in that project.
+janitor.help.ref.desc.context=The range of projects and issue types this field applies to. A default context is created automatically with the field.
+janitor.help.ref.impact.context=The range configuration goes with it. This is not evidence of use, so a field with only this reference is judged Unused.
+janitor.help.ref.desc.workflow=A workflow condition, validator, pre/post function or transition screen references the field. The transition name and the position are shown.
+janitor.help.ref.impact.workflow=That transition breaks silently. A required-field validator stops validating and a value-setting post function does nothing. No error is raised, so it is found late.
+janitor.help.ref.desc.filter=The JQL of a saved filter references the field. Both name references and cf[ID] references are found.
+janitor.help.ref.impact.filter=The filter breaks and no longer runs. Anything using it - dashboards, gadgets - stops with it.
+janitor.help.ref.desc.permissionScheme=A permission scheme uses this field's value to decide who gets a permission (User or Group custom field value).
+janitor.help.ref.impact.permissionScheme=That permission entry stops granting the permission to anyone. The permission disappears silently with no error, which makes this the reference to be most careful about.
+janitor.help.ref.desc.notificationScheme=A notification scheme uses this field's value to decide who is notified.
+janitor.help.ref.impact.notificationScheme=That notification stops reaching anyone. The complaint that mail is not arriving comes in much later.
+janitor.help.ref.desc.issueSecurityScheme=An issue security scheme uses this field's value for a security level.
+janitor.help.ref.impact.issueSecurityScheme=Issues at that security level can become visible to nobody.
+janitor.help.ref.desc.gadget=A dashboard gadget holds this field in its configuration. The dashboard and gadget are named.
+janitor.help.ref.impact.gadget=That gadget errors or shows an empty result.
+
+janitor.help.decide.title=Deciding what to delete - three groups
+janitor.help.decide.intro=Read the label and the numbers and sort each field into one of the three groups below. You make the decision; the change is made on the standard Jira screens.
+janitor.help.decide.safe.title=Safe to delete
+janitor.help.decide.safe.body=Unused label, with values 0, screens 0, workflows 0, filters 0, gadgets 0, schemes 0 and no locked mark. As far as this tool can see there is nothing to lose. Read the limits in section 7 as well - Agile board configuration and some third-party app settings were not checked. In practice, export the list to CSV, circulate it to the teams involved, and delete if nobody objects within a week.
+janitor.help.decide.check.title=Check before deleting
+janitor.help.decide.check.body=Orphan data, Neglected, and fields whose only references are filters or gadgets. For orphan data, decide whether the values are still needed (audit, reporting, history) and export them via CSV or JQL first if not. For neglected fields, remove them from the screens before deleting. Check the detail screen for a "required" flag in any field configuration - deleting a required field can block issue creation. For a field with a duplicate name, confirm the target by ID.
+janitor.help.decide.stop.title=Do not delete yet
+janitor.help.decide.stop.body=Active fields are in normal use and are not targets. Among At risk fields, those locked by an app (Sprint, Epic Link, Rank and so on) must be left alone while you use that app. The rest become deletable once the references are cleaned up - find the workflow transition or scheme entry on the detail screen, remove it, and scan again. Decide once the label has dropped to Neglected or Unused.
+janitor.help.decide.steps.title=Suggested cleanup procedure
+janitor.help.decide.steps.1=Run a scan and export the CSV to record the current state. A before snapshot lets you explain later what was deleted and why.
+janitor.help.decide.steps.2=Start with Unused. Starting from At risk or Active costs time and gains nothing.
+janitor.help.decide.steps.3=For each candidate, open the detail screen and confirm with your own eyes that the references really are zero. If the field appears in the "Could not verify" list, drop it from the candidates.
+janitor.help.decide.steps.4=Confirm a database backup exists. Deleting a custom field cannot be undone in Jira.
+janitor.help.decide.steps.5=Delete only a few at a time on the standard Jira screens, and in between try issue creation, editing and the main workflow transitions. Deleting dozens at once makes the cause impossible to find.
+janitor.help.decide.steps.6=Scan again afterwards and check the "Could not verify" list and the remaining field count. That record is the starting point for the next round.
+janitor.help.decide.orphanWarning=Deleting a custom field permanently deletes its values as well. Jira has no undo. The Orphan data label in particular looks like an unused field because nothing shows on screen, while the data is in fact still there.
+
+janitor.help.scan.title=How the scan works
+janitor.help.scan.body=The numbers on this screen come from the last scan, not from a live query. An administration tool is more useful when it is predictable than when it is live.
+janitor.help.scan.when.title=When to scan again
+janitor.help.scan.when.body=After changing screens, workflows, filters or schemes, or after deleting fields, scan again or the numbers will be stale. The last scan time is always shown at the top right. Pressing the button while a scan is running does not start a second one - it reports progress. On a large instance the scan reads every custom field value, so run it outside business hours.
+janitor.help.scan.cache.title=Where the result is kept
+janitor.help.scan.cache.body=In memory only; a Jira restart clears it and you scan again. On Data Center with several nodes the result differs per node, so always read the scan time shown on screen.
+janitor.help.scan.csv.title=CSV export
+janitor.help.scan.csv.body=Exports every column on screen plus permission, notification and issue security scheme counts and the locked flag. Use it to plan the cleanup in a spreadsheet or to circulate to other teams. The encoding is set so that Excel opens it directly.
+janitor.help.scan.inject.title=Badges on the custom fields administration screen
+janitor.help.scan.inject.body=Each row of Administration > Issues > Custom fields also gets a status badge, the value count and a Usage link, so you can jump across from where the question actually occurs to you. Nothing is added if no scan has run.
+janitor.help.scan.problems.title=The "Could not verify" list
+janitor.help.scan.problems.body=Shown at the bottom of the list screen. These are items the scan could not read - a filter with unparseable JQL, for example. An entry here means "unknown", not "no reference". If a deletion candidate is related to anything in this list, drop it from the candidates.
+
+janitor.help.limits.title=What this tool cannot see
+janitor.help.limits.body=Zero references is not proof that deletion is safe. The areas named above were not checked. A tool that does not state its own limits leads administrators to delete fields with false confidence, which is why the same text appears both on screen and here. The last value change date is also name-based and is inaccurate for fields that were renamed or share a name.
+
+janitor.help.workflow.title=Common situations
+janitor.help.faq.q1=This list shows a field that is not on the Jira custom fields screen.
+janitor.help.faq.a1=When the app providing the type is disabled, Jira hides that field from its list. This tool works from the database, so it shows it. Those are the entries marked "type unavailable" - leftovers from a removed app, usually the first thing worth cleaning up.
+janitor.help.faq.q2=Why do built-in fields like Sprint or Story Points appear here?
+janitor.help.faq.a2=They are not built-in fields; they are custom fields created by the Jira Software app. Genuine system fields (Summary, Assignee, Priority, Status and so on) cannot appear in this list. Ones an app locked, such as Sprint and Epic Link, carry both the At risk label and the locked mark.
+janitor.help.faq.q3=I know this field has values but Issues with value reads 0.
+janitor.help.faq.a3=If the type stores its values in the app's own tables (Rank, for instance) this tool does not count them. Such fields usually carry the locked mark, so check that first. If it is neither locked nor type-unavailable and still reads 0, check the "Could not verify" list.
+janitor.help.faq.q4=Several fields share a name and I cannot tell which to delete.
+janitor.help.faq.a4=Compare the issues-with-value and screen counts of each row. Usually only one has values and screens while the rest are zero; those zeros are the candidates. When deleting, confirm the target by field ID - choosing by name on the delete screen picks the wrong one.
+janitor.help.faq.q5=I want to clear the At risk label.
+janitor.help.faq.a5=On the detail screen find the entries with the "breaks behaviour" badge, follow the link and remove the reference - the condition, validator or post function on that transition, or the scheme entry. Scan again and the label drops. Fields locked by an app will not drop this way, and should not be made to.
+janitor.help.faq.q6=I deleted a field but it is still in the list.
+janitor.help.faq.a6=The list is the last scan result. Press "Scan now" again.

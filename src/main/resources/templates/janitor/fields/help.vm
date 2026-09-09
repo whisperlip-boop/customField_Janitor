@@ -1,0 +1,468 @@
+#* 사용 설명서 — 목록 화면 안내 문구 아래 링크로 들어온다.
+
+   본문은 전부 i18n 번들에서 온다(ko/en). 그래서 여기에는 구조만 있다.
+   판정 규칙을 글로 다시 쓰지 않고 UsageStatus / ReferenceType 열거형을 순회해
+   같은 i18n 키를 쓴다 — 코드에서 라벨이 바뀌면 설명서도 자동으로 따라간다.
+   설명서와 실제 동작이 어긋나는 것이 설명서가 없는 것보다 나쁘다. *#
+<html>
+<head>
+    <title>$action.text("janitor.help.title")</title>
+    <meta name="decorator" content="admin">
+    <meta name="admin.active.section" content="admin_issues_menu/element_options_section/fields_section">
+    <meta name="admin.active.tab" content="cf-usage-link">
+    <style type="text/css">
+        /* 2단 레이아웃: 본문 + 우측 고정 색인. 내용이 한 페이지짜리라 좌측 탭 대신
+           스크롤을 따라오는 색인이 맞다. 좁은 화면에서는 색인을 본문 위로 올린다. */
+        .janitor-help-layout { display: flex; align-items: flex-start; gap: 28px; }
+        .janitor-help-body { flex: 1 1 auto; min-width: 0; max-width: 900px; }
+        .janitor-help-toc {
+            flex: 0 0 260px;
+            position: -webkit-sticky;
+            position: sticky;
+            top: 16px;
+            max-height: calc(100vh - 48px);
+            overflow-y: auto;
+            border-left: 2px solid #dfe1e6;
+            padding: 4px 0 4px 14px;
+        }
+        .janitor-help-toc h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; color: #6b778c; }
+        .janitor-help-toc ul { list-style: none; margin: 0; padding: 0; }
+        .janitor-help-toc li { margin: 0; }
+        .janitor-help-toc a {
+            display: block; padding: 4px 6px; border-radius: 3px;
+            color: #0052cc; text-decoration: none; font-size: 13px; line-height: 1.4;
+        }
+        .janitor-help-toc a:hover { background: #f4f5f7; text-decoration: none; }
+        .janitor-help-toc .janitor-toc-h3 a { padding-left: 18px; font-size: 12px; color: #42526e; }
+        .janitor-help-toc a.janitor-toc-active { background: #deebff; color: #0747a6; font-weight: bold; }
+
+        @media (max-width: 1100px) {
+            .janitor-help-layout { display: block; }
+            .janitor-help-toc {
+                position: static; max-height: none; border-left: 0;
+                border-bottom: 2px solid #dfe1e6; padding: 0 0 12px; margin-bottom: 18px;
+            }
+            .janitor-help-toc ul { column-count: 2; column-gap: 24px; }
+        }
+
+        /* 언어 토글 */
+        .janitor-lang { display: inline-flex; border: 1px solid #c1c7d0; border-radius: 3px; overflow: hidden; }
+        .janitor-lang a { padding: 4px 12px; font-size: 13px; text-decoration: none; color: #42526e; background: #fff; }
+        .janitor-lang a:hover { background: #f4f5f7; text-decoration: none; }
+        .janitor-lang a.janitor-lang-on { background: #0052cc; color: #fff; font-weight: bold; }
+        .janitor-lang a + a { border-left: 1px solid #c1c7d0; }
+
+        /* 본문 */
+        .janitor-help-body h2 {
+            margin-top: 34px; padding-top: 14px; border-top: 2px solid #dfe1e6;
+            scroll-margin-top: 12px;
+        }
+        .janitor-help-body h3 { margin-top: 22px; scroll-margin-top: 12px; }
+        .janitor-help-body table { width: 100%; margin: 10px 0 18px; }
+        .janitor-help-body td, .janitor-help-body th { vertical-align: top; }
+        .janitor-w1 { width: 22%; white-space: nowrap; }
+        .janitor-w2 { width: 26%; }
+        .janitor-help-body dl { margin: 0; }
+        .janitor-help-body dt { font-weight: bold; margin-top: 12px; }
+        .janitor-help-body dd { margin: 2px 0 0 0; color: #42526e; }
+        .janitor-meta { color: #6b778c; font-size: 12px; }
+        .janitor-help-body code { background: #f4f5f7; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+        .janitor-safe   { border-left: 4px solid #00875a; padding-left: 14px; }
+        .janitor-check  { border-left: 4px solid #ff991f; padding-left: 14px; }
+        .janitor-danger { border-left: 4px solid #de350b; padding-left: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="aui-page-header">
+    <div class="aui-page-header-inner">
+        <div class="aui-page-header-main">
+            <h2>$action.text("janitor.help.title")</h2>
+        </div>
+        <div class="aui-page-header-actions">
+            #* 언어는 서버측에서 정해진다. 링크로 공유하면 받는 사람도 같은 언어로 본다. *#
+            <div class="janitor-lang">
+                <a href="$action.koUrl" #if($action.korean)class="janitor-lang-on"#end>한국어</a>
+                <a href="$action.enUrl" #if(!$action.korean)class="janitor-lang-on"#end>English</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="janitor-help-layout">
+
+<div class="janitor-help-body">
+
+<p><a href="$action.listUrl">&laquo; $action.text("janitor.help.backToList")</a></p>
+
+<p>$action.text("janitor.help.intro")</p>
+
+<div class="aui-message aui-message-info">
+    <p>$action.text("janitor.help.readOnly")</p>
+</div>
+
+## 1. 목록 화면 컬럼
+<h2 id="janitor-h-columns">1. $action.text("janitor.help.columns.title")</h2>
+
+<table class="aui">
+    <thead>
+    <tr>
+        <th class="janitor-w1">$action.text("janitor.help.col.column")</th>
+        <th>$action.text("janitor.help.col.meaning")</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td><strong>$action.text("janitor.fields.column.status")</strong></td>
+        <td>$action.text("janitor.help.columns.status")</td>
+    </tr>
+    <tr>
+        <td><strong>$action.text("janitor.fields.column.name")</strong></td>
+        <td>$action.text("janitor.help.columns.field")</td>
+    </tr>
+    <tr>
+        <td><strong>$action.text("janitor.fields.column.type")</strong></td>
+        <td>$action.text("janitor.help.columns.type")</td>
+    </tr>
+    <tr>
+        <td><strong>$action.text("janitor.fields.column.issuesWithValue")</strong></td>
+        <td>$action.text("janitor.help.columns.issuesWithValue")</td>
+    </tr>
+    <tr>
+        <td><strong>$action.text("janitor.fields.column.valueRows")</strong></td>
+        <td>$action.text("janitor.help.columns.valueRows")</td>
+    </tr>
+    <tr>
+        <td><strong>$action.text("janitor.fields.column.lastChange")</strong></td>
+        <td>$action.text("janitor.help.columns.lastChange")</td>
+    </tr>
+    <tr>
+        <td><strong>$action.text("janitor.fields.column.screens")</strong></td>
+        <td>$action.text("janitor.help.columns.screens")</td>
+    </tr>
+    <tr>
+        <td><strong>$action.text("janitor.fields.column.workflows")</strong></td>
+        <td>$action.text("janitor.help.columns.workflows")</td>
+    </tr>
+    <tr>
+        <td><strong>$action.text("janitor.fields.column.filters")</strong></td>
+        <td>$action.text("janitor.help.columns.filters")</td>
+    </tr>
+    <tr>
+        <td><strong>$action.text("janitor.fields.column.gadgets")</strong></td>
+        <td>$action.text("janitor.help.columns.gadgets")</td>
+    </tr>
+    <tr>
+        <td><strong>$action.text("janitor.fields.column.totalReferences")</strong></td>
+        <td>$action.text("janitor.help.columns.totalReferences")</td>
+    </tr>
+    </tbody>
+</table>
+
+<p class="janitor-meta">$action.text("janitor.help.columns.sortNote")</p>
+
+## 2. 상태 라벨
+<h2 id="janitor-h-status">2. $action.text("janitor.help.status.title")</h2>
+
+<p>$action.text("janitor.help.status.intro")</p>
+
+<table class="aui">
+    <thead>
+    <tr>
+        <th class="janitor-w1">$action.text("janitor.fields.column.status")</th>
+        <th class="janitor-w2">$action.text("janitor.help.status.condition")</th>
+        <th>$action.text("janitor.help.status.meaning")</th>
+    </tr>
+    </thead>
+    <tbody>
+    #* 열거형을 순회한다. 코드의 라벨이 바뀌면 설명서도 같이 바뀐다. *#
+    #foreach ($status in $action.statusesByCleanupOrder)
+        <tr>
+            <td>
+                #if ($status.lozengeType == "")
+                    <span class="aui-lozenge">$action.text($status.i18nKey)</span>
+                #else
+                    <span class="aui-lozenge aui-lozenge-${status.lozengeType}">$action.text($status.i18nKey)</span>
+                #end
+            </td>
+            <td><code>$action.text("janitor.help.status.cond.${status.code}")</code></td>
+            <td>
+                <div>$action.text("janitor.help.status.desc.${status.code}")</div>
+                <div class="janitor-meta">
+                    <strong>$action.text("janitor.help.status.action")</strong>
+                    $action.text("janitor.help.status.act.${status.code}")
+                </div>
+            </td>
+        </tr>
+    #end
+    </tbody>
+</table>
+
+<h3>$action.text("janitor.help.status.order.title")</h3>
+<p>$action.text("janitor.help.status.order.body")</p>
+
+<h3>$action.text("janitor.help.status.notCounted.title")</h3>
+<p>$action.text("janitor.help.status.notCounted.body")</p>
+
+<h3>$action.text("janitor.help.status.confusion.title")</h3>
+<p>$action.text("janitor.help.status.confusion.body")</p>
+
+## 3. Field 칸의 표시들
+<h2 id="janitor-h-badges">3. $action.text("janitor.help.badges.title")</h2>
+
+<table class="aui">
+    <thead>
+    <tr>
+        <th class="janitor-w1">$action.text("janitor.help.badges.mark")</th>
+        <th>$action.text("janitor.help.col.meaning")</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td><span style="color:#bf2600;font-weight:bold">&#9888;</span></td>
+        <td>
+            <div><strong>$action.text("janitor.help.badges.dup.name")</strong></div>
+            <div>$action.text("janitor.help.badges.dup.body")</div>
+        </td>
+    </tr>
+    <tr>
+        <td><span class="aui-lozenge aui-lozenge-error">$action.text("janitor.fields.lockedShort")</span></td>
+        <td>
+            <div><strong>$action.text("janitor.help.badges.locked.name")</strong></div>
+            <div>$action.text("janitor.help.badges.locked.body")</div>
+        </td>
+    </tr>
+    <tr>
+        <td><span style="color:#bf2600;font-weight:bold">$action.text("janitor.fields.typeUnavailableShort")</span></td>
+        <td>
+            <div><strong>$action.text("janitor.help.badges.typeUnavailable.name")</strong></div>
+            <div>$action.text("janitor.help.badges.typeUnavailable.body")</div>
+        </td>
+    </tr>
+    <tr>
+        <td><span class="janitor-meta">$action.text("janitor.fields.inaccurate")</span></td>
+        <td>
+            <div><strong>$action.text("janitor.help.badges.inaccurate.name")</strong></div>
+            <div>$action.text("janitor.help.badges.inaccurate.body")</div>
+        </td>
+    </tr>
+    <tr>
+        <td><span style="color:#bf2600;font-weight:bold">$action.text("janitor.fields.unavailable")</span></td>
+        <td>
+            <div><strong>$action.text("janitor.help.badges.unavailable.name")</strong></div>
+            <div>$action.text("janitor.help.badges.unavailable.body")</div>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+## 4. 상세 화면
+<h2 id="janitor-h-detail">4. $action.text("janitor.help.detail.title")</h2>
+
+<p>$action.text("janitor.help.detail.intro")</p>
+
+<h3>$action.text("janitor.help.detail.summary.title")</h3>
+<p>$action.text("janitor.help.detail.summary.body")</p>
+
+<h3>$action.text("janitor.help.detail.refs.title")</h3>
+<p>$action.text("janitor.help.detail.refs.intro")</p>
+
+<table class="aui">
+    <thead>
+    <tr>
+        <th class="janitor-w1">$action.text("janitor.help.detail.refs.category")</th>
+        <th class="janitor-w2">$action.text("janitor.help.col.meaning")</th>
+        <th>$action.text("janitor.help.detail.refs.ifDeleted")</th>
+    </tr>
+    </thead>
+    <tbody>
+    #foreach ($type in $action.referenceTypes)
+        <tr>
+            <td>
+                <strong>$action.text($type.i18nKey)</strong>
+                #if ($type.risky)
+                    <div><span class="aui-lozenge aui-lozenge-error">$action.text("janitor.fields.detail.risky")</span></div>
+                #end
+                #if (!$type.evidence)
+                    <div class="janitor-meta">$action.text("janitor.help.detail.refs.notEvidence")</div>
+                #end
+            </td>
+            <td>$action.text("janitor.help.ref.desc.${type.code}")</td>
+            <td>$action.text("janitor.help.ref.impact.${type.code}")</td>
+        </tr>
+    #end
+    </tbody>
+</table>
+
+<h3>$action.text("janitor.help.detail.cols.title")</h3>
+<dl>
+    <dt>$action.text("janitor.fields.detail.target")</dt>
+    <dd>$action.text("janitor.help.detail.cols.target")</dd>
+    <dt>$action.text("janitor.fields.detail.where")</dt>
+    <dd>$action.text("janitor.help.detail.cols.where")</dd>
+    <dt>$action.text("janitor.fields.detail.projects")</dt>
+    <dd>$action.text("janitor.help.detail.cols.projects")</dd>
+</dl>
+
+<h3>$action.text("janitor.help.detail.numbers.title")</h3>
+<p>$action.text("janitor.help.detail.numbers.body")</p>
+
+## 5. 삭제 판단
+<h2 id="janitor-h-decide">5. $action.text("janitor.help.decide.title")</h2>
+
+<p>$action.text("janitor.help.decide.intro")</p>
+
+<div class="janitor-safe">
+    <h3>$action.text("janitor.help.decide.safe.title")</h3>
+    <p>$action.text("janitor.help.decide.safe.body")</p>
+</div>
+
+<div class="janitor-check">
+    <h3>$action.text("janitor.help.decide.check.title")</h3>
+    <p>$action.text("janitor.help.decide.check.body")</p>
+</div>
+
+<div class="janitor-danger">
+    <h3>$action.text("janitor.help.decide.stop.title")</h3>
+    <p>$action.text("janitor.help.decide.stop.body")</p>
+</div>
+
+<h3>$action.text("janitor.help.decide.steps.title")</h3>
+<ol>
+    <li>$action.text("janitor.help.decide.steps.1")</li>
+    <li>$action.text("janitor.help.decide.steps.2")</li>
+    <li>$action.text("janitor.help.decide.steps.3")</li>
+    <li>$action.text("janitor.help.decide.steps.4")</li>
+    <li>$action.text("janitor.help.decide.steps.5")</li>
+    <li>$action.text("janitor.help.decide.steps.6")</li>
+</ol>
+
+<div class="aui-message aui-message-warning">
+    <p>$action.text("janitor.help.decide.orphanWarning")</p>
+</div>
+
+## 6. 스캔
+<h2 id="janitor-h-scan">6. $action.text("janitor.help.scan.title")</h2>
+<p>$action.text("janitor.help.scan.body")</p>
+<dl>
+    <dt>$action.text("janitor.help.scan.when.title")</dt>
+    <dd>$action.text("janitor.help.scan.when.body")</dd>
+    <dt>$action.text("janitor.help.scan.cache.title")</dt>
+    <dd>$action.text("janitor.help.scan.cache.body")</dd>
+    <dt>$action.text("janitor.help.scan.csv.title")</dt>
+    <dd>$action.text("janitor.help.scan.csv.body")</dd>
+    <dt>$action.text("janitor.help.scan.inject.title")</dt>
+    <dd>$action.text("janitor.help.scan.inject.body")</dd>
+    <dt>$action.text("janitor.help.scan.problems.title")</dt>
+    <dd>$action.text("janitor.help.scan.problems.body")</dd>
+</dl>
+
+## 7. 한계
+<h2 id="janitor-h-limits">7. $action.text("janitor.help.limits.title")</h2>
+<div class="aui-message aui-message-warning">
+    <p>$action.text("janitor.fields.limitation")</p>
+</div>
+<p>$action.text("janitor.help.limits.body")</p>
+<p>$action.text("janitor.fields.metric.note")</p>
+
+## 8. 자주 겪는 상황
+<h2 id="janitor-h-workflow">8. $action.text("janitor.help.workflow.title")</h2>
+<dl>
+    <dt>$action.text("janitor.help.faq.q1")</dt>
+    <dd>$action.text("janitor.help.faq.a1")</dd>
+    <dt>$action.text("janitor.help.faq.q2")</dt>
+    <dd>$action.text("janitor.help.faq.a2")</dd>
+    <dt>$action.text("janitor.help.faq.q3")</dt>
+    <dd>$action.text("janitor.help.faq.a3")</dd>
+    <dt>$action.text("janitor.help.faq.q4")</dt>
+    <dd>$action.text("janitor.help.faq.a4")</dd>
+    <dt>$action.text("janitor.help.faq.q5")</dt>
+    <dd>$action.text("janitor.help.faq.a5")</dd>
+    <dt>$action.text("janitor.help.faq.q6")</dt>
+    <dd>$action.text("janitor.help.faq.a6")</dd>
+</dl>
+
+<p style="margin-top:24px"><a href="$action.listUrl">&laquo; $action.text("janitor.help.backToList")</a></p>
+
+</div><!-- /janitor-help-body -->
+
+#* 색인은 본문에서 JS가 만든다. 목차를 손으로 적어두면 본문을 고칠 때마다 어긋난다 —
+   설명서와 실제 내용이 다른 것이 설명서가 없는 것보다 나쁘다. *#
+<nav class="janitor-help-toc" id="janitor-toc" aria-label="$action.text('janitor.help.toc')">
+    <h3>$action.text("janitor.help.toc")</h3>
+    <ul id="janitor-toc-list"></ul>
+</nav>
+
+</div><!-- /janitor-help-layout -->
+
+<script type="text/javascript">
+(function () {
+    "use strict";
+
+    var body = document.querySelector(".janitor-help-body");
+    var list = document.getElementById("janitor-toc-list");
+    if (!body || !list) { return; }
+
+    var headings = Array.prototype.slice.call(body.querySelectorAll("h2, h3"));
+    if (!headings.length) {
+        document.getElementById("janitor-toc").style.display = "none";
+        return;
+    }
+
+    var links = [];
+    headings.forEach(function (heading, index) {
+        if (!heading.id) { heading.id = "janitor-s" + index; }
+
+        var li = document.createElement("li");
+        if (heading.tagName === "H3") { li.className = "janitor-toc-h3"; }
+
+        var a = document.createElement("a");
+        a.href = "#" + heading.id;
+        a.textContent = (heading.textContent || "").trim();
+        a.title = a.textContent;
+        li.appendChild(a);
+        list.appendChild(li);
+        links.push({ link: a, heading: heading });
+    });
+
+    function activate(entry) {
+        links.forEach(function (item) {
+            if (item === entry) {
+                item.link.className += item.link.className ? " janitor-toc-active" : "janitor-toc-active";
+            } else {
+                item.link.className = item.link.className.replace(/\s*janitor-toc-active/g, "");
+            }
+        });
+    }
+
+    // 스크롤 위치에 맞춰 색인 항목을 강조한다. IntersectionObserver 가 없으면
+    // 색인은 그대로 쓰이고 강조만 빠진다.
+    if (typeof IntersectionObserver === "function") {
+        var visible = [];
+        var observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (e) {
+                var idx = visible.indexOf(e.target);
+                if (e.isIntersecting && idx < 0) { visible.push(e.target); }
+                if (!e.isIntersecting && idx >= 0) { visible.splice(idx, 1); }
+            });
+            if (!visible.length) { return; }
+            // 문서 순서상 가장 위에 있는 것을 현재 위치로 본다.
+            var top = visible.slice().sort(function (a, b) {
+                return headings.indexOf(a) - headings.indexOf(b);
+            })[0];
+            for (var i = 0; i < links.length; i++) {
+                if (links[i].heading === top) { activate(links[i]); break; }
+            }
+        }, { rootMargin: "0px 0px -70% 0px" });
+        headings.forEach(function (h) { observer.observe(h); });
+    }
+
+    // 색인을 눌러 이동했을 때는 즉시 강조를 옮긴다.
+    links.forEach(function (item) {
+        item.link.addEventListener("click", function () { activate(item); });
+    });
+})();
+</script>
+
+</body>
+</html>

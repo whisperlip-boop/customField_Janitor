@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE workflow PUBLIC "-//OpenSymphony Group//DTD OSWorkflow 2.8//EN" "http://www.opensymphony.com/osworkflow/workflow_2_8.dtd">
+<!-- 픽스처 E: 워크플로가 @FIELD_E@(Janitor Fixture E)를 참조하게 만든다.
+     참조 위치를 일부러 4곳에 흩어 놓았다:
+       1) 중첩된 restrict-to 조건 (AND 안의 OR)  - 함정 3
+       2) 전이 검증기                            - 기획서 5.3(5)
+       3) unconditional-result의 후처리 함수      - 기획서가 놓친 자리
+       4) 서드파티 클래스의 숫자 ID 단독 arg      - 추정 참조로 나와야 한다 -->
+<workflow>
+    <meta name="jira.description">Custom Field Janitor fixture workflow. Not assigned to any project.</meta>
+    <initial-actions>
+        <action id="1" name="Create">
+            <meta name="jira.i18n.title">common.forms.create</meta>
+            <validators>
+                <validator name="" type="class">
+                    <arg name="class.name">com.atlassian.jira.workflow.validator.PermissionValidator</arg>
+                    <arg name="permission">Create Issue</arg>
+                </validator>
+            </validators>
+            <results>
+                <unconditional-result old-status="None" status="Open" step="1">
+                    <post-functions>
+                        <function type="class">
+                            <arg name="class.name">com.atlassian.jira.workflow.function.issue.IssueCreateFunction</arg>
+                        </function>
+                        <function type="class">
+                            <arg name="class.name">com.atlassian.jira.workflow.function.issue.IssueReindexFunction</arg>
+                        </function>
+                        <function type="class">
+                            <arg name="eventTypeId">1</arg>
+                            <arg name="class.name">com.atlassian.jira.workflow.function.event.FireIssueEventFunction</arg>
+                        </function>
+                    </post-functions>
+                </unconditional-result>
+            </results>
+        </action>
+    </initial-actions>
+    <steps>
+        <step id="1" name="Open">
+            <meta name="jira.status.id">1</meta>
+            <actions>
+                <action id="11" name="Janitor Fixture Transition">
+                    <restrict-to>
+                        <conditions type="AND">
+                            <conditions type="OR">
+                                <condition type="class">
+                                    <arg name="class.name">com.atlassian.jira.workflow.condition.AllowOnlyAssignee</arg>
+                                </condition>
+                                <condition type="class">
+                                    <arg name="class.name">com.example.thirdparty.ValueFieldCondition</arg>
+                                    <arg name="selectedField">@FIELD_E@</arg>
+                                </condition>
+                            </conditions>
+                        </conditions>
+                    </restrict-to>
+                    <validators>
+                        <validator name="" type="class">
+                            <arg name="class.name">com.atlassian.jira.workflow.validator.FieldRequiredValidator</arg>
+                            <arg name="fieldsRequired">@FIELD_E@</arg>
+                        </validator>
+                        <validator name="" type="class">
+                            <arg name="class.name">com.example.thirdparty.NumericArgValidator</arg>
+                            <arg name="targetField">@FIELD_E_NUM@</arg>
+                        </validator>
+                    </validators>
+                    <results>
+                        <unconditional-result old-status="Open" status="Open" step="1">
+                            <post-functions>
+                                <function type="class">
+                                    <arg name="field.name">@FIELD_E@</arg>
+                                    <arg name="field.value">fixture</arg>
+                                    <arg name="class.name">com.atlassian.jira.workflow.function.issue.UpdateIssueFieldFunction</arg>
+                                </function>
+                                <function type="class">
+                                    <arg name="class.name">com.atlassian.jira.workflow.function.issue.GenerateChangeHistoryFunction</arg>
+                                </function>
+                                <function type="class">
+                                    <arg name="class.name">com.atlassian.jira.workflow.function.issue.IssueReindexFunction</arg>
+                                </function>
+                                <function type="class">
+                                    <arg name="eventTypeId">13</arg>
+                                    <arg name="class.name">com.atlassian.jira.workflow.function.event.FireIssueEventFunction</arg>
+                                </function>
+                            </post-functions>
+                        </unconditional-result>
+                    </results>
+                </action>
+            </actions>
+        </step>
+    </steps>
+</workflow>
