@@ -66,8 +66,14 @@ public class ManagedFieldCollector implements ReferenceCollector {
             if (plugin != null && plugin.getName() != null) {
                 return plugin.getName();
             }
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
             // 이름 조회 실패는 표시 문제일 뿐이다. 키를 그대로 낸다.
+            //
+            // Throwable 인 이유: 이 수집기는 isEssential 이라 여기서 빠져나가는 예외가
+            // 스캔 전체를 실패시킨다. 앱 업그레이드·재설치 중 PluginAccessor 가
+            // LinkageError 를 내면, 정작 필요한 정보(잠긴 필드 목록)는 이미 손에
+            //들고 있는데 표시용 이름 하나 때문에 스캔이 죽는다. 필수 등급의 반경은
+            // DAO 조회 한 줄이어야 한다.
         }
         return pluginKey;
     }

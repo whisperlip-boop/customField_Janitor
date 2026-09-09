@@ -1,10 +1,12 @@
 package com.bskim.jira.janitor.fields.model;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Collections;
 import java.util.Date;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 
 /**
@@ -30,6 +32,8 @@ public final class FieldUsage {
     private boolean typeAvailable = true;
 
     private final List<Reference> references = new ArrayList<Reference>();
+    /** 중복 검사용. 순서는 {@link #references} 가, 동일성 판정은 이쪽이 담당한다. */
+    private final Set<Reference> seen = new HashSet<Reference>();
     private final List<String> contextProjects = new ArrayList<String>();
     private final List<String> contextIssueTypes = new ArrayList<String>();
     private boolean globalContext;
@@ -137,10 +141,15 @@ public final class FieldUsage {
      * 입구 한 곳에서 막는다.
      *
      * <p>{@code List} 를 유지하는 이유는 순서다 — 상세 화면은 수집한 순서대로
-     * 보여주는 게 읽기 쉽다. 참조 수가 필드당 수십 건이라 선형 검색으로 충분하다.
+     * 보여주는 게 읽기 쉽다. 중복 검사는 별도 {@code Set} 으로 한다.
+     *
+     * <p>선형 검색으로 두면 안 된다. 전이 화면 참조는 (워크플로, 전이)마다 1건씩
+     * 생기므로 공용 전이 화면을 쓰는 워크플로 100개 × 전이 20개면 한 필드에
+     * 2,000건이고 비교가 200만 회다 — 워크플로가 많은 인스턴스에서 스캔 시간에
+     * 드러난다. {@code hashCode} 가 이미 있으니 {@code Set} 하나로 O(1)이 된다.
      */
     public void addReference(Reference reference) {
-        if (reference == null || references.contains(reference)) {
+        if (reference == null || !seen.add(reference)) {
             return;
         }
         references.add(reference);

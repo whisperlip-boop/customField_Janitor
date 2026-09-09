@@ -53,7 +53,12 @@
     </div>
 </div>
 
-#if ($action.hasErrorMessages())
+#* hasAnyErrors() 다. hasErrorMessages() 는 webwork1 에 없다 —
+   실제 이름은 getHasErrorMessages() 이고, Velocity 는 메서드 호출 문법에서 그걸
+   찾지 못해 조용히 false 로 평가한다. 그래서 v1.0.1 까지 이 안내가 한 번도
+   화면에 나오지 않았다(실측). 없는 필드 ID로 들어온 관리자는 아무 설명 없이
+   목록만 봤다. *#
+#if ($action.hasAnyErrors())
     <div class="aui-message aui-message-warning">
         #foreach ($message in $action.errorMessages)
             <p>$action.escape($message)</p>
@@ -84,7 +89,9 @@
 </div>
 
 <div id="janitor-progress" class="janitor-progress" style="display:none;">
-    <div class="aui-message aui-message-info">
+    #* 클래스를 JS가 상태에 따라 바꾼다. 실패한 순간에 파란 정보 박스로 보이면
+       가장 중요한 순간에 색이 반대다. *#
+    <div id="janitor-progress-box" class="aui-message aui-message-info">
         <p id="janitor-progress-text"></p>
     </div>
 </div>
@@ -99,6 +106,15 @@
         #if ($action.resultStale)
             <p><strong>$action.text("janitor.fields.scanFailed.stale")</strong></p>
         #end
+    </div>
+#end
+
+#* 목록이 반쪽인 것은 "일부 항목을 못 읽었다"와 성격이 다르다. 아래 "확인 불가"
+   목록에 한 줄로 두면 표가 완전하다고 읽힌다. *#
+#if ($action.fieldListDegraded)
+    <div class="aui-message aui-message-warning">
+        <p class="title"><strong>$action.text("janitor.fields.degraded.title")</strong></p>
+        <p>$action.text("janitor.fields.degraded.body")</p>
     </div>
 #end
 
@@ -239,8 +255,34 @@
     var langParam = "$action.restLangParam";
     var scanButton = document.getElementById("janitor-scan");
     var progressBox = document.getElementById("janitor-progress");
+    var progressInner = document.getElementById("janitor-progress-box");
     var progressText = document.getElementById("janitor-progress-text");
     var polling = null;
+
+    function stopPolling() {
+        if (polling !== null) {
+            window.clearInterval(polling);
+            polling = null;
+        }
+        if (scanButton) { scanButton.removeAttribute("disabled"); }
+    }
+
+    /**
+     * 요청이 실패했을 때 화면에 남긴다.
+     *
+     * 이게 없으면 웹수도 세션이 만료되거나 권한을 잃은 순간 XHR이 401/403으로
+     * 떨어지고, 폴링은 조용히 아무 일도 하지 않고, 버튼은 disabled 로 남는다.
+     * 관리자에게는 "눌렀는데 아무 일도 안 일어나고 버튼이 죽었다"로 보인다.
+     * "조용히 실패하지 않는다"는 이 앱의 규칙은 서버측에만 적용돼 있었다.
+     */
+    function showRequestError(code) {
+        stopPolling();
+        progressBox.style.display = "";
+        progressInner.className = "aui-message aui-message-error";
+        progressText.textContent = (code === 401 || code === 403)
+            ? "$action.escapeJs($action.text('janitor.fields.sessionExpired'))"
+            : "$action.escapeJs($action.text('janitor.fields.scanRequestFailed'))";
+    }
 
     function request(method, path, done) {
         var xhr = new XMLHttpRequest();
@@ -261,11 +303,14 @@
         if (!status) { return; }
         progressBox.style.display = "";
         if (status.state === "RUNNING") {
+            progressInner.className = "aui-message aui-message-info";
             progressText.textContent = (status.stageLabel || status.stage || "") +
                 " (" + status.stageIndex + "/" + status.stageTotal + ", " + status.percent + "%)";
         } else if (status.state === "FAILED") {
+            progressInner.className = "aui-message aui-message-error";
             progressText.textContent = status.error || "failed";
         } else if (status.state === "DONE") {
+            progressInner.className = "aui-message aui-message-info";
             progressText.textContent = "";
             progressBox.style.display = "none";
         }
@@ -273,12 +318,13 @@
 
     function poll() {
         request("GET", "/scan/status", function (code, status) {
+            // 401/403 이면 조용히 멈추지 않고 이유를 낸다. 큰 인스턴스에서는 스캔이
+            // 웹수도 제한 시간(기본 10분 수준)보다 오래 걸릴 수 있어 실제로 일어난다.
+            if (code === 401 || code === 403) { showRequestError(code); return; }
             if (code !== 200 || !status) { return; }
             showProgress(status);
             if (status.state !== "RUNNING") {
-                window.clearInterval(polling);
-                polling = null;
-                scanButton.removeAttribute("disabled");
+                stopPolling();
                 // 결과도 실패도 서버가 렌더링한다. 실패는 재로드해도 남는다
                 // (액션의 scanFailure). 그래도 재로드하지 않는 편이 덜 놀랍다 —
                 // 방금 본 실패 메시지가 화면 점프 없이 그 자리에 있다.
@@ -294,6 +340,9 @@
         scanButton.addEventListener("click", function () {
             scanButton.setAttribute("disabled", "disabled");
             request("POST", "/scan", function (code, status) {
+                // 202=시작, 409=이미 실행 중(진행률을 준다). 그 밖은 실패다.
+                // code 를 안 보면 403 에서도 버튼이 disabled 로 남아 영구히 죽는다.
+                if (code >= 400 && code !== 409) { showRequestError(code); return; }
                 showProgress(status);
                 if (polling === null) {
                     polling = window.setInterval(poll, 1500);

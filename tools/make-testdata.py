@@ -292,17 +292,40 @@ def main():
     print("필드 C를 화면에서 제거 (값은 남는다)")
     remove_from_screens(c)
 
-    print("권한 스킴에 userCF 항목 추가 (필드 F)")
+    # 권한 스킴 항목을 세 권한에 넣는다.
+    #
+    # 한 권한만 넣으면 v1.0.1 의 회귀를 못 잡는다. 스킴 참조의 동일성 키에 권한
+    # 구분이 없으면 세 항목이 하나로 합쳐지는데, 항목이 하나뿐이면 합칠 것도 없어서
+    # 픽스처가 통과한다. 실제로 그렇게 놓쳤다.
+    #
+    # 기대: 이 필드의 PERMISSION_SCHEME 참조가 3건, riskyReferences 에 3이 포함된다.
+    print("권한 스킴에 userCF 항목 추가 (필드 F) — 세 권한")
     code, schemes = call("GET", "/rest/api/2/permissionscheme")
     scheme_id = schemes["permissionSchemes"][0]["id"]
+    # parameter 형식이 인스턴스에 따라 다를 수 있어 통하는 쪽을 먼저 찾는다.
+    working_parameter = None
     for parameter in (f, f.replace("customfield_", "")):
         code, body = call("POST", "/rest/api/2/permissionscheme/%d/permission" % scheme_id, {
             "holder": {"type": "userCustomField", "parameter": parameter},
             "permission": "BROWSE_PROJECTS",
         })
-        print("  perm holder parameter=%s -> %s %s" % (parameter, code, body if code >= 400 else ""))
-        if code in (200, 201):
+        print("  BROWSE_PROJECTS parameter=%s -> %s %s" % (parameter, code, body if code >= 400 else ""))
+        # "already exists" 는 실패가 아니다 — 이미 넣혀 있다는 뜻이므로 이 형식이
+        # 통하는 형식이다. 재실행 가능해야 하니 성공으로 취급한다.
+        if code in (200, 201) or "already exists" in str(body):
+            working_parameter = parameter
             break
+    if working_parameter is not None:
+        for permission in ("EDIT_ISSUES", "ASSIGNABLE_USER"):
+            code, body = call("POST", "/rest/api/2/permissionscheme/%d/permission" % scheme_id, {
+                "holder": {"type": "userCustomField", "parameter": working_parameter},
+                "permission": permission,
+            })
+            ok = code in (200, 201) or "already exists" in str(body)
+            print("  %s -> %s%s" % (permission, "OK" if ok else code,
+                                    "" if ok else " " + str(body)))
+    else:
+        print("  통하는 parameter 형식을 못 찾았다 — 픽스처 F 는 알림 스킴만으로 진행한다")
 
     print("\n필터 준비 (이름 참조 / cf[ID] 참조)")
     for name, jql in (

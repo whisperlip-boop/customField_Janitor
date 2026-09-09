@@ -96,10 +96,24 @@ public class SchemeCollector implements ReferenceCollector {
                                 "참조 대상 필드를 찾지 못했다: parameter=" + entity.getParameter());
                         continue;
                     }
+                    // entityTypeId 를 targetId 에 함께 넣는다. 이게 없으면 한 스킴이
+                    // 같은 필드로 Browse / Edit / Assign 세 권한을 줄 때 세 참조의
+                    // 동일성 키가 완전히 같아져서, addReference 의 중복 제거가 3건을
+                    // 1건으로 합친다(v1.0.1 에서 실제로 그랬다 — 중복 제거를 넣으면서
+                    // 만든 회귀다). [위험] 라벨이 붙은 필드의 상세 화면은 관리자가
+                    // "무엇을 손봐야 하는가"를 읽는 유일한 곳이라, 세 군데가 한 줄로
+                    // 뭉개지면 그 화면의 목적이 사라진다.
+                    //
+                    // 권한/이벤트 이름으로 풀어 보여주는 것은 아직 안 한다 — 여기서
+                    // 필요한 것은 "서로 다른 참조다"를 성립시키는 식별자다.
+                    Object entityTypeId = entity.getEntityTypeId();
+                    String targetId = entityTypeId == null
+                            ? String.valueOf(scheme.getId())
+                            : scheme.getId() + "/" + entityTypeId;
                     context.addReference(field, new Reference(
                             referenceType,
                             scheme.getName(),
-                            String.valueOf(scheme.getId()),
+                            targetId,
                             entity.getType(),
                             adminUrl(referenceType, scheme.getId()),
                             projects));

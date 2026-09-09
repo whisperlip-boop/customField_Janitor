@@ -64,7 +64,14 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
             selectedField = findField(fieldId);
             if (selectedField == null) {
                 // 스캔 전이거나 지워진 필드다. 목록으로 떨어뜨리고 안내를 낸다.
-                addErrorMessage(text("janitor.fields.detail.notFound"));
+                // 문구에 {0} 가 있으므로 2-arg 로 부른다. 1-arg 로 부르면 치환이
+                // 일어나지 않고 "{0} 의 상세를 볼 수 없습니다" 가 그대로 나온다.
+                //
+                // 무엇을 잘못 넣었는지 보여주려고 입력값을 그대로 싣되 길이를 자른다.
+                // 안 자르면 긴 문자열이 경고 박스를 가득 채운다. 이스케이프는 이중으로
+                // 걸린다(webwork 가 한 번, list.vm 의 $action.escape 가 한 번) —
+                // 표시가 지저분해지지만 안전한 쪽 실패라 그대로 둔다.
+                addErrorMessage(text("janitor.fields.detail.notFound", clip(fieldId)));
                 return SUCCESS;
             }
             return "detail";
@@ -202,6 +209,12 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
      * <b>이전 스캔의 표와 시각만 남는다.</b> 그러면 관리자는 방금 스캔한 결과를
      * 보고 있다고 믿는데 실제로는 지난번 스냅샷이다(기획서 7).
      */
+    /** 필드 목록이 반쪽인가. 참이면 표에 정리 1순위 후보가 빠져 있을 수 있다. */
+    public boolean isFieldListDegraded() {
+        ScanResult result = scanService.getLastResult();
+        return result != null && result.isFieldListDegraded();
+    }
+
     public String getScanFailure() {
         ScanFailure failure = scanService.getLastFailure();
         return failure == null ? null : failure.getMessage();
@@ -300,6 +313,57 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
      * HTML 이스케이프. 필드 이름·필터 이름·JQL 발췌 등은 전부 사용자 입력이므로
      * 템플릿에서 그냥 뿌리면 관리 화면에 스크립트가 들어온다.
      */
+    /**
+     * JS 문자열 리터럴 안에 넣을 값. HTML escape 와 다르다 —
+     * {@code &quot;} 는 JS 안에서 문자 그대로 남으므로 따옴표를 백슬래시로 막아야 한다.
+     *
+     * <p>여기 들어가는 것은 우리 i18n 번들의 문구뿐이라 현재로선 위험한 문자가 없다.
+     * 그래도 번역을 고칠 때 따옴표나 줄바꿈을 넣으면 스크립트가 깨지므로 막아둔다 —
+     * 화면 전체의 JS가 죽으면 스캔 버튼이 동작하지 않는다.
+     */
+    /** 화면에 되돌려 보여주는 입력값을 짧게 자른다. */
+    private static String clip(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String value = raw.trim();
+        return value.length() <= 40 ? value : value.substring(0, 40) + "…";
+    }
+
+    public String escapeJs(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder(raw.length() + 16);
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            switch (c) {
+                case '\\':
+                    out.append("\\\\");
+                    break;
+                case '\'':
+                    out.append("\\'");
+                    break;
+                case '"':
+                    out.append("\\\"");
+                    break;
+                case '\n':
+                    out.append("\\n");
+                    break;
+                case '\r':
+                    out.append("\\r");
+                    break;
+                case '<':
+                    // </script> 가 문자열 안에서 태그를 닫는 것을 막는다.
+                    out.append("\\u003c");
+                    break;
+                default:
+                    out.append(c);
+            }
+        }
+        return out.toString();
+    }
+
     public String escape(String raw) {
         if (raw == null) {
             return "";

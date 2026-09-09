@@ -142,6 +142,14 @@ public final class ScanService {
         stage(startedAt, ScanProgress.Stage.FIELDS);
         List<ScanProblem> earlyProblems = new ArrayList<ScanProblem>();
         List<FieldUsage> fields = loadFields(dao, earlyProblems);
+        // customfield 테이블을 못 읽었으면 판정 대상 자체가 빠져 있다. 화면 맨 위에
+        // 알려야 하므로 결과에 플래그로 싣는다("확인 불가" 한 줄로는 안 보인다).
+        boolean fieldListDegraded = false;
+        for (ScanProblem problem : earlyProblems) {
+            if ("customfield".equals(problem.getTarget())) {
+                fieldListDegraded = true;
+            }
+        }
         ScanContext context = new ScanContext(fields);
         context.getProblems().addAll(earlyProblems);
 
@@ -168,7 +176,7 @@ public final class ScanService {
         stage(startedAt, ScanProgress.Stage.FINISHING);
         List<FieldUsage> sorted = new ArrayList<FieldUsage>(fields);
         sorted.sort(CLEANUP_FIRST);
-        return new ScanResult(startedAt, new Date(), sorted, context.getProblems());
+        return new ScanResult(startedAt, new Date(), sorted, context.getProblems(), fieldListDegraded);
     }
 
     private void stage(Date startedAt, ScanProgress.Stage stage) {
