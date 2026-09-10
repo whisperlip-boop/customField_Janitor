@@ -96,14 +96,22 @@ public final class ScanService {
             return;
         }
         snapshotRead = true;
+        String version = pluginVersion();
+        if (UNKNOWN_VERSION.equals(version)) {
+            // 버전을 못 읽으면 판 검사가 무력해진다 — 쓸 때도 읽을 때도 "unknown"이라
+            // 어느 버전의 스냅샷이든 통과한다. 수집기가 늘어난 뒤 옛 스냅샷을 읽으면
+            // 그 참조가 빠진 표가 그려지고 라벨이 뒤집힌다. 시끄럽게 죽는 편이 낫다.
+            log.warn("플러그인 버전을 못 읽어 스냅샷을 쓰지 않는다 — 스캔을 눌러야 결과가 나온다");
+            return;
+        }
         try {
             String raw = SnapshotStore.load();
-            SnapshotCodec.Snapshot snapshot = SnapshotCodec.read(raw, pluginVersion());
+            SnapshotCodec.Snapshot snapshot = SnapshotCodec.read(raw, version);
             if (snapshot == null) {
                 if (raw != null && !raw.trim().isEmpty()) {
                     // 표가 사라진 이유를 남긴다. 이것 없이 업그레이드하면 관리자에게는
                     // "결과가 그냥 없어졌다"로 보인다.
-                    log.warn("저장된 스냅샷의 판이 지금 버전(" + pluginVersion()
+                    log.warn("저장된 스냅샷의 판이 지금 버전(" + version
                             + ")과 달라 버렸다 — 스캔을 다시 눌러야 한다");
                 }
                 return;
@@ -140,6 +148,9 @@ public final class ScanService {
      * 그 참조가 통째로 빠진 채 표가 그려지고, 컬럼으로만 쓰이던 필드가 [미사용]으로
      * 나온다. 정보가 없는 것이 삭제 신호로 바뀌는 것이 이 도구 최악의 실패다.
      */
+    /** 버전을 못 읽었을 때의 값. 이 값이면 스냅샷을 쓰지 않는다. */
+    private static final String UNKNOWN_VERSION = "unknown";
+
     private static String pluginVersion() {
         try {
             com.atlassian.plugin.Plugin plugin = ComponentAccessor.getPluginAccessor()
@@ -153,7 +164,7 @@ public final class ScanService {
         } catch (Throwable t) {
             log.debug("플러그인 버전을 못 읽었다", t);
         }
-        return "unknown";
+        return UNKNOWN_VERSION;
     }
 
     public static ScanService getInstance() {
@@ -165,6 +176,11 @@ public final class ScanService {
      * 중복 실행 방지). 호출부는 false를 받으면 현재 진행률을 그대로 돌려주면 된다.
      */
     public boolean startScan() {
+        // 저장된 스냅샷을 반드시 <b>쓰기 전에</b> 읽는다. 순서가 뒤집히면 이렇게 된다:
+        // 재기동 직후 첫 스캔이 실패하면 lastResult 가 아직 null 인 채로 스냅샷을
+        // 저장해 이전의 성공 결과를 지워 버린다 — "아래 표는 이전 스캔의 결과입니다"
+        // 배너가 가리킬 표가 없어진다. 실패 경로에서만 드러나는 종류의 유실이다.
+        restoreSnapshot();
         if (!running.compareAndSet(false, true)) {
             return false;
         }
@@ -178,7 +194,6 @@ public final class ScanService {
                     ScanResult result = scan(startedAt);
                     lastResult.set(result);
                     lastFailure.set(null);
-                    snapshotRead = true;
                     saveSnapshot();
                     progress.set(new ScanProgress(ScanProgress.State.DONE, ScanProgress.Stage.FINISHING,
                             startedAt, null));
@@ -193,7 +208,6 @@ public final class ScanService {
                             + (e.getMessage() == null ? "" : ": " + e.getMessage());
                     lastFailure.set(new ScanFailure(startedAt, new Date(), message));
                     // 실패도 저장한다. 결과만 남기면 재기동 뒤 옛 표가 배너 없이 살아난다.
-                    snapshotRead = true;
                     saveSnapshot();
                     progress.set(new ScanProgress(ScanProgress.State.FAILED, null, startedAt, message));
                 } finally {
