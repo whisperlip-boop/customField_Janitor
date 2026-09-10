@@ -130,6 +130,14 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
         return locale().text(key, arg);
     }
 
+    /**
+     * "확인 불가" 한 줄의 이유. 스캔이 만든 i18n 키를 <b>보는 사람의 언어로</b> 그린다 —
+     * 예전에는 스캔 스레드가 만든 한글 문장이 영어 화면에도 그대로 나왔다(docs/00 41번).
+     */
+    public String problemMessage(com.bskim.jira.janitor.fields.model.ScanProblem problem) {
+        return problem.resolve(locale().helper());
+    }
+
     public String text(String key) {
         return locale().text(key);
     }

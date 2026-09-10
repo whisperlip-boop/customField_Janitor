@@ -56,7 +56,7 @@ public class ScanResultCodecTest {
                 "LOCKED", null, null, Collections.<String>emptyList(), true));
 
         List<FieldUsage> fields = new ArrayList<FieldUsage>(Arrays.asList(active, dead));
-        List<ScanProblem> problems = Arrays.asList(new ScanProblem("filter", "깨진 필터 (10102)", "JQL 파싱 실패"));
+        List<ScanProblem> problems = Arrays.asList(ScanProblem.raw("filter", "깨진 필터 (10102)", "JQL 파싱 실패"));
         return new ScanResult(new Date(1700000000000L), new Date(1700000060000L), fields, problems, true);
     }
 

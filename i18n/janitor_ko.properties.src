@@ -99,6 +99,16 @@ janitor.fields.problems.area=단계
 janitor.fields.problems.target=항목
 janitor.fields.problems.message=이유
 
+# 확인 불가 목록의 이유 문구. 스캔 스레드는 보는 사람의 언어를 모르므로 키만 남기고
+# 화면이 그린다(docs/00 41번).
+janitor.fields.problem.filterJql=JQL 파싱 실패 — 문자열 탐색으로 대체: {0}
+janitor.fields.problem.schemeManager=스킴 매니저를 얻지 못했습니다.
+janitor.fields.problem.schemeTargetMissing=참조 대상 필드를 찾지 못했습니다: parameter={0}
+janitor.fields.problem.fieldGone=스캔 도중 필드가 사라졌습니다.
+janitor.fields.problem.fieldList=필드 목록을 DB에서 읽지 못했습니다. 타입 제공 앱이 비활성인 필드는 목록에서 빠질 수 있습니다: {0}
+janitor.fields.problem.deepRowCount=행 수를 세지 못했습니다: {0}
+janitor.fields.problem.deepTruncated=일치 행이 {0}개를 넘어 뒷부분은 읽지 않았습니다.
+
 janitor.fields.detail.title=필드 사용처 - {0}
 janitor.fields.detail.heading=필드 사용처
 janitor.fields.detail.backToList=필드 목록으로

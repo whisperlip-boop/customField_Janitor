@@ -164,9 +164,8 @@ public final class ScanService extends AbstractScanRunner<ScanResult, ScanProgre
             rows = dao.getCustomFieldRows();
         } catch (Throwable e) {
             log.warn("customfield 테이블을 읽지 못했다 — CustomFieldManager 목록만 쓴다", e);
-            problems.add(new ScanProblem("fields", "customfield",
-                    "필드 목록을 DB에서 읽지 못했다. 타입 제공 앱이 비활성인 필드는 목록에서 빠질 수 있다: "
-                            + e.getClass().getSimpleName()));
+            problems.add(ScanProblem.keyed("fields", "customfield",
+                    "janitor.fields.problem.fieldList", e.getClass().getSimpleName()));
             rows = new ArrayList<CustomFieldRow>();
             for (Map.Entry<Long, CustomField> entry : byId.entrySet()) {
                 CustomField customField = entry.getValue();

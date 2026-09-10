@@ -244,7 +244,7 @@
             <tr>
                 <td>$action.escape($problem.area)</td>
                 <td>$action.escape($problem.target)</td>
-                <td>$action.escape($problem.message)</td>
+                <td>$action.escape($action.problemMessage($problem))</td>
             </tr>
         #end
         </tbody>
@@ -315,7 +315,7 @@
                 #foreach ($problem in $action.deepProblems)
                     <tr>
                         <td>$action.escape($problem.target)</td>
-                        <td>$action.escape($problem.message)</td>
+                        <td>$action.escape($action.problemMessage($problem))</td>
                     </tr>
                 #end
                 </tbody>

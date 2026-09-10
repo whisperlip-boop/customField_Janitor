@@ -75,6 +75,11 @@ public final class LocaleText {
         return i18n() == null ? key : i18n().getText(key, first, second, third);
     }
 
+    /** 이 언어의 {@code I18nHelper}. 문구를 직접 조립하는 쪽(예: ScanProblem)이 쓴다. */
+    public I18nHelper helper() {
+        return i18n();
+    }
+
     private I18nHelper i18n() {
         if (i18n == null) {
             i18n = resolve(isKorean() ? Locale.KOREAN : Locale.ENGLISH);

@@ -66,7 +66,7 @@ public class SchemeCollector implements ReferenceCollector {
     private void collectScheme(ScanContext context, SchemeManager manager, Set<String> cfTypes,
                                ReferenceType referenceType, String area) {
         if (manager == null) {
-            context.addProblem(area, "-", "스킴 매니저를 얻지 못했다");
+            context.addProblem(area, "-", "janitor.fields.problem.schemeManager");
             return;
         }
         List<Scheme> schemes;
@@ -93,7 +93,8 @@ public class SchemeCollector implements ReferenceCollector {
                         // 참조는 있는데 가리키는 필드를 못 찾았다. 이미 지워진 필드일 수 있다.
                         // 우리 목록에는 낼 자리가 없으니 확인 불가로 남긴다.
                         context.addProblem(area, scheme.getName() + " / " + entity.getType(),
-                                "참조 대상 필드를 찾지 못했다: parameter=" + entity.getParameter());
+                                "janitor.fields.problem.schemeTargetMissing",
+                                String.valueOf(entity.getParameter()));
                         continue;
                     }
                     // entityTypeId 를 targetId 에 함께 넣는다. 이게 없으면 한 스킴이

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -113,9 +114,13 @@ public class ScanContextTest {
     @Test
     public void 확인_불가는_조용히_사라지지_않는다() {
         ScanContext c = context(10001L);
-        c.addProblem("filter", "깨진 필터 (1)", "JQL 파싱 실패");
+        c.addProblem("filter", "깨진 필터 (1)", "janitor.fields.problem.filterJql", "JqlParseException");
         c.addProblem("scheme", "스킴 (2)", new IllegalStateException("boom"));
         assertEquals(2, c.getProblems().size());
         assertTrue(c.getProblems().get(1).getMessage().contains("IllegalStateException"));
+        // 사람이 읽는 문장은 완성된 채로 담기지 않는다 — 키와 인자다(docs/00 41번).
+        assertEquals("janitor.fields.problem.filterJql", c.getProblems().get(0).getMessageKey());
+        assertEquals(java.util.Arrays.asList("JqlParseException"), c.getProblems().get(0).getMessageArgs());
+        assertNull("예외 텍스트는 번역하지 않는다", c.getProblems().get(1).getMessageKey());
     }
 }

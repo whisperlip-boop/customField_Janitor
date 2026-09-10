@@ -169,14 +169,19 @@ public final class ScanContext {
     }
 
     /** 확인하지 못한 항목을 기록한다. 조용히 넘기지 않는다(함정 7). */
+    /** 예외에서 나온 텍스트는 번역하지 않는다 — 클래스 이름과 드라이버 메시지다. */
     public void addProblem(String area, String target, Throwable cause) {
         String message = cause.getClass().getSimpleName()
                 + (cause.getMessage() == null ? "" : ": " + cause.getMessage());
-        problems.add(new ScanProblem(area, target, message));
+        problems.add(ScanProblem.raw(area, target, message));
     }
 
-    public void addProblem(String area, String target, String message) {
-        problems.add(new ScanProblem(area, target, message));
+    /**
+     * 사람이 읽는 문장. <b>완성된 문자열이 아니라 i18n 키</b>를 넘긴다 — 스캔 스레드에는
+     * 보는 사람의 로케일이 없고 결과 한 벌을 두 언어가 함께 본다(docs/00 41번).
+     */
+    public void addProblem(String area, String target, String messageKey, String... args) {
+        problems.add(ScanProblem.keyed(area, target, messageKey, args));
     }
 
     public List<ScanProblem> getProblems() {

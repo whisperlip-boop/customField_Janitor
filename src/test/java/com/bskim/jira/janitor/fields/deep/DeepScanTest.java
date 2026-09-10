@@ -135,7 +135,7 @@ public class DeepScanTest {
         }
         matches.put(10001L, new ArrayList<DeepTableMatch>(Arrays.asList(a, b)));
         return new DeepScanResult(new Date(1000L), new Date(2000L), 204, 12345L, matches,
-                Arrays.asList(new ScanProblem("deep", "AO_X", "timeout")));
+                Arrays.asList(ScanProblem.raw("deep", "AO_X", "timeout")));
     }
 
     @Test
@@ -171,7 +171,7 @@ public class DeepScanTest {
         assertTrue(SnapshotEnvelope.read(DeepResultCodec.INSTANCE, json, "1.3.2").isRejected());
         assertNull(SnapshotEnvelope.read(DeepResultCodec.INSTANCE, null, "1.3.2"));
         // 옛 스키마(1: 행 단위 hits) 는 판이 달라 버려진다.
-        assertEquals("결과 판 1 ≠ 2", SnapshotEnvelope.read(DeepResultCodec.INSTANCE, "{\"envelope\":1,\"schema\":1,\"pluginVersion\":\"1.3.2\",\"result\":null}", "1.3.2").rejected);
+        assertEquals("결과 판 1 ≠ 3", SnapshotEnvelope.read(DeepResultCodec.INSTANCE, "{\"envelope\":1,\"schema\":1,\"pluginVersion\":\"1.3.2\",\"result\":null}", "1.3.2").rejected);
     }
 
     @Test

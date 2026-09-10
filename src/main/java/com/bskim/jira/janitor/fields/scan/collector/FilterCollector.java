@@ -70,8 +70,8 @@ public class FilterCollector implements ReferenceCollector {
                 referenced = parseReferences(context, parser, jql);
             } catch (Exception e) {
                 // JqlParseException 포함. 실패를 노출하고 최선 탐색으로 넘어간다.
-                context.addProblem("filter", label, "JQL 파싱 실패 — 문자열 탐색으로 대체: "
-                        + e.getClass().getSimpleName());
+                context.addProblem("filter", label, "janitor.fields.problem.filterJql",
+                        e.getClass().getSimpleName());
                 referenced = scanRaw(context, jql);
             }
 

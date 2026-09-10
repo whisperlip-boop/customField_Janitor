@@ -4,6 +4,7 @@ import com.atlassian.jira.util.json.JSONArray;
 import com.atlassian.jira.util.json.JSONException;
 import com.atlassian.jira.util.json.JSONObject;
 import com.bskim.jira.janitor.fields.model.ScanProblem;
+import com.bskim.jira.janitor.fields.store.ProblemJson;
 import com.bskim.jira.janitor.fields.store.ResultCodec;
 
 import java.util.ArrayList;
@@ -23,7 +24,8 @@ import static com.bskim.jira.janitor.fields.store.SnapshotEnvelope.optString;
  */
 public final class DeepResultCodec implements ResultCodec<DeepScanResult> {
 
-    public static final int SCHEMA = 2;
+    /** 3 — "확인 불가" 항목이 i18n 키와 인자를 담는다(docs/00 41번). */
+    public static final int SCHEMA = 3;
 
     public static final DeepResultCodec INSTANCE = new DeepResultCodec();
 
@@ -57,15 +59,7 @@ public final class DeepResultCodec implements ResultCodec<DeepScanResult> {
         }
         json.put("matches", matches);
 
-        JSONArray problems = new JSONArray();
-        for (ScanProblem problem : result.getProblems()) {
-            JSONObject one = new JSONObject();
-            one.put("area", nullSafe(problem.getArea()));
-            one.put("target", nullSafe(problem.getTarget()));
-            one.put("message", nullSafe(problem.getMessage()));
-            problems.put(one);
-        }
-        json.put("problems", problems);
+        json.put("problems", ProblemJson.write(result.getProblems()));
         return json;
     }
 
@@ -96,13 +90,7 @@ public final class DeepResultCodec implements ResultCodec<DeepScanResult> {
             }
         }
 
-        List<ScanProblem> problems = new ArrayList<ScanProblem>();
-        JSONArray problemJson = json.optJSONArray("problems");
-        for (int i = 0; problemJson != null && i < problemJson.length(); i++) {
-            JSONObject one = problemJson.getJSONObject(i);
-            problems.add(new ScanProblem(optString(one, "area"), optString(one, "target"),
-                    optString(one, "message")));
-        }
+        List<ScanProblem> problems = ProblemJson.read(json.optJSONArray("problems"));
 
         return new DeepScanResult(new Date(json.getLong("startedAt")),
                 new Date(json.getLong("finishedAt")), json.optInt("tablesScanned", 0),

@@ -99,6 +99,16 @@ janitor.fields.problems.area=Stage
 janitor.fields.problems.target=Item
 janitor.fields.problems.message=Reason
 
+# 확인 불가 목록의 이유 문구. 스캔 스레드는 보는 사람의 언어를 모르므로 키만 남기고
+# 화면이 그린다(docs/00 41번).
+janitor.fields.problem.filterJql=JQL parse failed - fell back to a text search: {0}
+janitor.fields.problem.schemeManager=Could not obtain the scheme manager.
+janitor.fields.problem.schemeTargetMissing=The referenced field was not found: parameter={0}
+janitor.fields.problem.fieldGone=The field disappeared while the scan was running.
+janitor.fields.problem.fieldList=Could not read the field list from the database. Fields whose type is provided by a disabled app may be missing: {0}
+janitor.fields.problem.deepRowCount=Could not count the rows: {0}
+janitor.fields.problem.deepTruncated=More than {0} matching rows - the rest were not read.
+
 janitor.fields.detail.title=Field usage - {0}
 janitor.fields.detail.heading=Field usage
 janitor.fields.detail.backToList=Back to the field list

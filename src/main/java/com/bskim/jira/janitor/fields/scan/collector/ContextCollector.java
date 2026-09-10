@@ -45,7 +45,7 @@ public class ContextCollector implements ReferenceCollector {
                 if (customField == null) {
                     // 스캔 도중 필드가 지워졌다. 조용히 넘기지 않는다.
                     context.addProblem("context", field.getName() + " (" + field.getFieldId() + ")",
-                            "스캔 중 필드를 찾을 수 없게 되었다");
+                            "janitor.fields.problem.fieldGone");
                     continue;
                 }
                 collectField(context, field, customField);

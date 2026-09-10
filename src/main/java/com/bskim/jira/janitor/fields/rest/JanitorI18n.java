@@ -13,6 +13,11 @@ public final class JanitorI18n {
     private JanitorI18n() {
     }
 
+    /** 호출자 로케일의 {@code I18nHelper}. 못 얻으면 null — 부르는 쪽이 대체 문자열을 낸다. */
+    public static I18nHelper helper() {
+        return ComponentAccessor.getJiraAuthenticationContext().getI18nHelper();
+    }
+
     public static String text(String key) {
         I18nHelper i18n = ComponentAccessor.getJiraAuthenticationContext().getI18nHelper();
         return i18n == null ? key : i18n.getText(key);

@@ -24,8 +24,11 @@ import static com.bskim.jira.janitor.fields.store.SnapshotEnvelope.optString;
  */
 public final class ScanResultCodec implements ResultCodec<ScanResult> {
 
-    /** 결과 본문의 판. 수집·판정의 뜻이 바뀌면 올린다(형식이 같아도). */
-    public static final int SCHEMA = 1;
+    /**
+     * 결과 본문의 판. 수집·판정의 뜻이 바뀌면 올린다(형식이 같아도).
+     * 2 — "확인 불가" 항목이 완성된 문장 대신 i18n 키와 인자를 담는다(docs/00 41번).
+     */
+    public static final int SCHEMA = 2;
 
     public static final ScanResultCodec INSTANCE = new ScanResultCodec();
 
@@ -50,15 +53,7 @@ public final class ScanResultCodec implements ResultCodec<ScanResult> {
         }
         json.put("fields", fields);
 
-        JSONArray problems = new JSONArray();
-        for (ScanProblem problem : result.getProblems()) {
-            JSONObject one = new JSONObject();
-            one.put("area", nullSafe(problem.getArea()));
-            one.put("target", nullSafe(problem.getTarget()));
-            one.put("message", nullSafe(problem.getMessage()));
-            problems.put(one);
-        }
-        json.put("problems", problems);
+        json.put("problems", ProblemJson.write(result.getProblems()));
         return json;
     }
 
@@ -70,15 +65,7 @@ public final class ScanResultCodec implements ResultCodec<ScanResult> {
             fields.add(readField(fieldArray.getJSONObject(i)));
         }
 
-        List<ScanProblem> problems = new ArrayList<ScanProblem>();
-        JSONArray problemArray = json.optJSONArray("problems");
-        if (problemArray != null) {
-            for (int i = 0; i < problemArray.length(); i++) {
-                JSONObject one = problemArray.getJSONObject(i);
-                problems.add(new ScanProblem(optString(one, "area"), optString(one, "target"),
-                        optString(one, "message")));
-            }
-        }
+        List<ScanProblem> problems = ProblemJson.read(json.optJSONArray("problems"));
 
         return new ScanResult(new Date(json.getLong("startedAt")), new Date(json.getLong("finishedAt")),
                 fields, problems, json.optBoolean("fieldListDegraded", false));

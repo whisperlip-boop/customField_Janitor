@@ -90,7 +90,8 @@ public final class DeepScanService extends AbstractScanRunner<DeepScanResult, De
             try {
                 rows += dao.countRows(table);
             } catch (Throwable e) {
-                problems.add(new ScanProblem("deep", table.getName(), "행 수를 못 셌다: " + describe(e)));
+                problems.add(ScanProblem.keyed("deep", table.getName(),
+                        "janitor.fields.problem.deepRowCount", describe(e)));
             }
 
             // 테이블 하나가 실패해도 나머지는 훑는다. Exception 이 아니라 Throwable 이다 —
@@ -105,11 +106,12 @@ public final class DeepScanService extends AbstractScanRunner<DeepScanResult, De
                 });
                 if (found.truncated) {
                     // 조용히 자르면 상세 화면이 "발견되지 않았습니다"를 단정문으로 낸다.
-                    problems.add(new ScanProblem("deep", table.getName(),
-                            "일치 행이 " + DeepScanPolicy.ROW_LIMIT + "개를 넘어 뒷부분은 보지 않았다"));
+                    problems.add(ScanProblem.keyed("deep", table.getName(),
+                            "janitor.fields.problem.deepTruncated",
+                            String.valueOf(DeepScanPolicy.ROW_LIMIT)));
                 }
             } catch (Throwable e) {
-                problems.add(new ScanProblem("deep", table.getName(), describe(e)));
+                problems.add(ScanProblem.raw("deep", table.getName(), describe(e)));
             }
         }
 
