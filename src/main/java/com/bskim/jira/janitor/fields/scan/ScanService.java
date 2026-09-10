@@ -10,6 +10,8 @@ import com.bskim.jira.janitor.fields.model.FieldUsage;
 import com.bskim.jira.janitor.fields.model.ScanProblem;
 import com.bskim.jira.janitor.fields.model.ScanProgress;
 import com.bskim.jira.janitor.fields.model.ScanResult;
+import com.bskim.jira.janitor.fields.store.SnapshotCodec;
+import com.bskim.jira.janitor.fields.store.SnapshotStore;
 import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
@@ -69,7 +71,89 @@ public final class ScanService {
      */
     private final AtomicReference<ScanFailure> lastFailure = new AtomicReference<ScanFailure>();
 
+    /**
+     * 스냅샷을 아직 읽어 보지 않았는가. 플러그인이 켜질 때가 아니라 <b>처음 물어볼 때</b>
+     * 읽는다 — 활성화 시점에는 SAL 서비스가 아직 안 떠 있을 수 있다.
+     */
+    private boolean snapshotRead = false;
+
     private ScanService() {
+    }
+
+    /**
+     * 저장된 스냅샷을 메모리로 올린다. 한 번만 한다.
+     *
+     * <p>복원 사실을 WARN 으로 남기는 이유: 이 인스턴스들은 플러그인 패키지의 INFO 를
+     * 버린다(실측). 표에 찍힌 시각이 <b>이번 기동에서 스캔한 것</b>인지 <b>복원된
+     * 것</b>인지는 문제를 쫓을 때 첫 번째로 알아야 하는 사실이라 로그에서 사라지면 안 된다.
+     *
+     * <p>메모리는 DB 행의 캐시다 — 없으면 읽어 오고(read-through), 스캔이 끝나면
+     * 쓴다(write-through). Data Center 에서 스캔하지 않은 노드는 자기가 마지막으로
+     * 읽은 스냅샷을 계속 보여준다. v1.5 는 노드 간 무효화를 하지 않는다.
+     */
+    private synchronized void restoreSnapshot() {
+        if (snapshotRead) {
+            return;
+        }
+        snapshotRead = true;
+        try {
+            String raw = SnapshotStore.load();
+            SnapshotCodec.Snapshot snapshot = SnapshotCodec.read(raw, pluginVersion());
+            if (snapshot == null) {
+                if (raw != null && !raw.trim().isEmpty()) {
+                    // 표가 사라진 이유를 남긴다. 이것 없이 업그레이드하면 관리자에게는
+                    // "결과가 그냥 없어졌다"로 보인다.
+                    log.warn("저장된 스냅샷의 판이 지금 버전(" + pluginVersion()
+                            + ")과 달라 버렸다 — 스캔을 다시 눌러야 한다");
+                }
+                return;
+            }
+            if (lastResult.get() == null && snapshot.result != null) {
+                lastResult.set(snapshot.result);
+            }
+            if (lastFailure.get() == null && snapshot.failure != null) {
+                lastFailure.set(snapshot.failure);
+            }
+            log.warn("스캔 스냅샷을 복원했다: 필드 "
+                    + (snapshot.result == null ? 0 : snapshot.result.getFields().size())
+                    + "개, 저장 시각 " + snapshot.savedAt
+                    + (snapshot.failure == null ? "" : " (마지막 스캔은 실패였다)"));
+        } catch (Throwable t) {
+            // 스냅샷은 부가 기능이다. 못 읽으면 "아직 스캔한 적 없음"으로 둔다.
+            log.warn("스캔 스냅샷을 읽지 못했다 — 스캔을 다시 눌러야 한다", t);
+        }
+    }
+
+    /** 결과와 실패를 함께 저장한다. 결과만 남기면 재기동 뒤 실패 배너가 사라진다. */
+    private void saveSnapshot() {
+        try {
+            SnapshotStore.save(SnapshotCodec.write(lastResult.get(), lastFailure.get(), pluginVersion()));
+        } catch (Throwable t) {
+            log.warn("스캔 스냅샷을 저장하지 못했다 — 다음 재기동에서 결과가 사라진다", t);
+        }
+    }
+
+    /**
+     * 실행 중인 플러그인 버전. 스냅샷의 판을 가르는 값이다.
+     *
+     * <p>버전이 다르면 스냅샷을 버린다: 수집기가 늘어난 새 버전이 옛 스냅샷을 읽으면
+     * 그 참조가 통째로 빠진 채 표가 그려지고, 컬럼으로만 쓰이던 필드가 [미사용]으로
+     * 나온다. 정보가 없는 것이 삭제 신호로 바뀌는 것이 이 도구 최악의 실패다.
+     */
+    private static String pluginVersion() {
+        try {
+            com.atlassian.plugin.Plugin plugin = ComponentAccessor.getPluginAccessor()
+                    .getPlugin("com.bskim.jira.janitor");
+            if (plugin != null && plugin.getPluginInformation() != null) {
+                String version = plugin.getPluginInformation().getVersion();
+                if (version != null && !version.trim().isEmpty()) {
+                    return version;
+                }
+            }
+        } catch (Throwable t) {
+            log.debug("플러그인 버전을 못 읽었다", t);
+        }
+        return "unknown";
     }
 
     public static ScanService getInstance() {
@@ -94,6 +178,8 @@ public final class ScanService {
                     ScanResult result = scan(startedAt);
                     lastResult.set(result);
                     lastFailure.set(null);
+                    snapshotRead = true;
+                    saveSnapshot();
                     progress.set(new ScanProgress(ScanProgress.State.DONE, ScanProgress.Stage.FINISHING,
                             startedAt, null));
                 } catch (Throwable e) {
@@ -106,6 +192,9 @@ public final class ScanService {
                     String message = e.getClass().getSimpleName()
                             + (e.getMessage() == null ? "" : ": " + e.getMessage());
                     lastFailure.set(new ScanFailure(startedAt, new Date(), message));
+                    // 실패도 저장한다. 결과만 남기면 재기동 뒤 옛 표가 배너 없이 살아난다.
+                    snapshotRead = true;
+                    saveSnapshot();
                     progress.set(new ScanProgress(ScanProgress.State.FAILED, null, startedAt, message));
                 } finally {
                     running.set(false);
@@ -123,6 +212,7 @@ public final class ScanService {
 
     /** 아직 한 번도 스캔하지 않았으면 null. 화면은 "스캔하세요" 안내를 낸다. */
     public ScanResult getLastResult() {
+        restoreSnapshot();
         return lastResult.get();
     }
 
@@ -132,6 +222,7 @@ public final class ScanService {
 
     /** 마지막 스캔이 실패했으면 그 기록, 아니면 null. 성공하면 지워진다. */
     public ScanFailure getLastFailure() {
+        restoreSnapshot();
         return lastFailure.get();
     }
 

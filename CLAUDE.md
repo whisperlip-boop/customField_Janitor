@@ -196,6 +196,8 @@ IntersectionObserver 로 현재 위치를 강조하고, 없으면 색인은 그�
   (예외: `janitor.fields.inject.*` 는 템플릿 문자열을 JS로 넘겨 클라이언트가 치환한다).
 - **`LIKE`의 `_`는 와일드카드다.** `'customfield_%'`는 의도한 쿼리가 아니다 →
   `ESCAPE`를 준다.
+- **우리 패키지의 `INFO` 로그는 테스트 인스턴스에서 버려진다.** 남는 것은 WARN·ERROR 뿐이다.
+  나중에 확인해야 하는 사실(스냅샷 복원 여부 같은 것)은 WARN 으로 남긴다(실측 33번).
 - **i18n `.properties`는 ISO-8859-1로 읽힌다.** 한글은 `\uXXXX`로 escape해야 한다.
   `i18n/*.properties.src`(UTF-8)를 고치고 `tools/make-i18n.py`로 생성한다.
   `src/main/resources/janitor*.properties`를 직접 고치지 말 것.
@@ -270,7 +272,8 @@ Sprint / Rank 가 Jira 관리 화면에도 안 보인다.
 ## 남은 일
 
 - ~~v1.5: 이슈 네비게이터 컬럼 레이아웃 집계~~ → v1.1.0 에서 넣었다(실측 32번)
-- v1.5: AO 스냅샷으로 재시작 후에도 결과 유지
+- ~~v1.5: 재시작 후에도 결과 유지~~ → v1.2.0 에서 넣었다(실측 33번). AO 가 아니라
+  SAL `PluginSettings` 다 — 이유는 33번.
 - v2: 심층 스캔 — `AO_*` 테이블의 문자열/CLOB 컬럼에서 `customfield_<id>` LIKE 검색.
   비용이 크므로 별도 버튼 + 소요 시간 경고 + 백그라운드 실행, 결과는
   "테이블명 / 행 ID / 어느 앱의 것으로 추측" 수준까지만 (의미 해석은 하지 않는다)
