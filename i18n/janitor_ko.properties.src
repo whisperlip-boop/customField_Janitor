@@ -67,6 +67,10 @@ janitor.fields.ref.permissionScheme=권한 스킴
 janitor.fields.ref.notificationScheme=알림 스킴
 janitor.fields.ref.issueSecurityScheme=이슈 보안 스킴
 janitor.fields.ref.gadget=대시보드 가젯
+janitor.fields.ref.columnLayout=이슈 네비게이터 컬럼
+janitor.fields.ref.columnLayout.system=시스템 기본 컬럼
+janitor.fields.ref.columnLayout.filter=필터의 컬럼
+janitor.fields.ref.columnLayout.personal=사용자 개인 컬럼
 
 janitor.fields.wf.transitionScreen=전이 화면
 janitor.fields.wf.condition=조건
@@ -86,6 +90,7 @@ janitor.fields.stage.workflows=워크플로 훑는 중
 janitor.fields.stage.filters=필터 훑는 중
 janitor.fields.stage.schemes=권한·알림·이슈 보안 스킴 훑는 중
 janitor.fields.stage.gadgets=대시보드 가젯 훑는 중
+janitor.fields.stage.columnLayouts=이슈 네비게이터 컬럼 훑는 중
 janitor.fields.stage.finishing=마무리 중
 
 janitor.fields.problems.title=확인 불가
@@ -221,6 +226,8 @@ janitor.help.ref.desc.issueSecurityScheme=이슈 보안 스킴이 이 필드의 
 janitor.help.ref.impact.issueSecurityScheme=해당 보안 수준의 이슈가 아무에게도 보이지 않게 될 수 있습니다.
 janitor.help.ref.desc.gadget=대시보드 가젯 설정에 이 필드가 들어 있습니다. 어느 대시보드의 어느 가젯인지 나옵니다.
 janitor.help.ref.impact.gadget=그 가젯이 오류를 내거나 빈 결과를 보여줍니다.
+janitor.help.ref.desc.columnLayout=이슈 목록(네비게이터)에 이 필드를 컬럼으로 띄우는 설정입니다. 시스템 기본 컬럼, 필터에 붙은 컬럼, 사용자 개인 설정 셋으로 나눠 보여줍니다. 개인 설정은 필드마다 한 줄로 묶고 몇 명인지 함께 적습니다.
+janitor.help.ref.impact.columnLayout=그 목록에서 컬럼이 사라집니다. 동작이 깨지지는 않지만, 누군가 이 필드를 보려고 직접 골라 넣었다는 뜻이므로 사용의 증거로 셉니다.
 
 # --- 5. 삭제 판단 ---
 janitor.help.decide.title=삭제 판단 — 세 갈래

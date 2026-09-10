@@ -314,33 +314,59 @@ public class JanitorDao {
     }
 
     /**
-     * 이슈 네비게이터 컬럼으로 이 필드를 쓰는 설정 수(기획서 5.3(9)).
-     * 사용자 개인 설정까지 잡히므로 개별 대상이 아니라 집계만 낸다.
+     * 이슈 네비게이터 컬럼 설정에서 커스텀 필드를 쓰는 행 전부(기획서 5.3(9)).
      *
-     * @return {@code customfield_10001} → 컬럼 설정 건수
+     * <p>집계만 내던 것을 행 단위로 바꿨다. 수만 보여주면 관리자가 할 수 있는 일이
+     * 없기 때문이다 — "3곳" 은 어디를 고쳐야 하는지 알려주지 않는다. 시스템 기본
+     * 컬럼인지, 어느 필터의 컬럼인지, 개인 설정인지가 갈려야 조치가 정해진다.
+     *
+     * <p>{@code columnlayoutitem} 은 필드 하나가 여러 설정에 들어가도 행이 나뉘므로
+     * 이 쿼리 자체는 인스턴스 크기에 비례한다. 다만 {@code WHERE} 로 커스텀 필드
+     * 항목만 걸러서 가져온다 — 시스템 필드(issuekey, status …)가 대부분이라
+     * 실제로 넘어오는 행은 훨씬 적다.
      */
-    public Map<String, Integer> getColumnLayoutCounts() {
-        final String sql = "SELECT fieldidentifier, COUNT(*) AS use_count"
-                + " FROM " + table("columnlayoutitem")
-                + " WHERE fieldidentifier LIKE 'customfield!_%' ESCAPE '!'"
-                + " GROUP BY fieldidentifier";
+    public List<ColumnLayoutRow> getColumnLayoutRows() {
+        final String sql = "SELECT cl.id AS layout_id, cl.username AS user_key,"
+                + " cl.searchrequest AS filter_id, sr.filtername AS filter_name,"
+                + " cli.fieldidentifier AS field_id"
+                + " FROM " + table("columnlayoutitem") + " cli"
+                + " JOIN " + table("columnlayout") + " cl ON cli.columnlayout = cl.id"
+                + " LEFT JOIN " + table("searchrequest") + " sr ON cl.searchrequest = sr.id"
+                // LIKE 의 _ 는 와일드카드다. 리터럴로 쓰려는 것이므로 ESCAPE 를 준다.
+                + " WHERE cli.fieldidentifier LIKE 'customfield!_%' ESCAPE '!'";
 
-        return databaseAccessor.executeQuery(new ConnectionFunction<Map<String, Integer>>() {
+        return databaseAccessor.executeQuery(new ConnectionFunction<List<ColumnLayoutRow>>() {
             @Override
-            public Map<String, Integer> run(DatabaseConnection connection) {
-                Map<String, Integer> counts = new HashMap<String, Integer>();
+            public List<ColumnLayoutRow> run(DatabaseConnection connection) {
+                List<ColumnLayoutRow> rows = new ArrayList<ColumnLayoutRow>();
                 Connection jdbc = connection.getJdbcConnection();
                 try (PreparedStatement statement = jdbc.prepareStatement(sql);
-                     ResultSet rows = statement.executeQuery()) {
-                    while (rows.next()) {
-                        counts.put(rows.getString("fieldidentifier"), rows.getInt("use_count"));
+                     ResultSet result = statement.executeQuery()) {
+                    while (result.next()) {
+                        Long filterId = result.getObject("filter_id") == null
+                                ? null : result.getLong("filter_id");
+                        rows.add(new ColumnLayoutRow(
+                                result.getLong("layout_id"),
+                                trimToNull(result.getString("user_key")),
+                                filterId,
+                                result.getString("filter_name"),
+                                result.getString("field_id")));
                     }
                 } catch (SQLException e) {
                     throw new DaoException("컬럼 레이아웃 쿼리 실패", e);
                 }
-                return counts;
+                return rows;
             }
         });
+    }
+
+    /** 빈 문자열은 "값 없음" 으로 본다. 컬럼 설정의 주인 컬럼이 빈 문자열인 인스턴스가 있다. */
+    private static String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     /** 진단용. 화면에 "DB: PostgreSQL 11" 처럼 찍어 관리자가 실측 조건을 알게 한다. */

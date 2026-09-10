@@ -56,6 +56,7 @@ Jira가 판단 재료를 주지 않는다.
 | C · 조회 | 필터(JQL) | `SearchRequest` 전체 + `JqlQueryParser` (이름 참조와 `cf[ID]` 참조 둘 다) |
 | C · 조회 | 권한 / 알림 / 이슈 보안 스킴 | `SchemeManager.getSchemeObjects()` (`userCF`, `groupCF`, `*_Custom_Field_Value`) |
 | C · 조회 | 대시보드 가젯 | `gadgetuserpreference` 문자열 스캔 |
+| C · 조회 | 이슈 네비게이터 컬럼 | `columnlayout` + `columnlayoutitem` (시스템 기본 / 필터 / 개인 설정을 구분한다) |
 | 소유 | 앱이 잠근 필드 (Sprint, Epic Link, Rank …) | `managedconfigurationitem` 단일 쿼리 (앱이 비활성이어도 잡힌다) |
 
 각 항목에는 해당 Jira 관리 화면 링크가 붙는다. 실제 삭제·수정은 Jira 표준 화면에서 한다.
@@ -97,7 +98,7 @@ Jira가 판단 재료를 주지 않는다.
 관리자 도구는 예측 가능한 게 실시간보다 낫다.
 
 - 단계별 진행률을 REST 폴링으로 노출한다(필드 → 값 → 화면 → 필드설정 → 컨텍스트 →
-  워크플로 → 필터 → 스킴 → 가젯)
+  워크플로 → 필터 → 스킴 → 가젯 → 네비게이터 컬럼)
 - 진행 중 재요청은 409로 거부하고 현재 진행률을 준다
 - 결과는 메모리 보관. Data Center 다중 노드에서는 노드별로 갈리므로 화면에 항상
   스캔 시각을 함께 보여준다

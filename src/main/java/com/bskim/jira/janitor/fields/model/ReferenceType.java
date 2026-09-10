@@ -45,7 +45,20 @@ public enum ReferenceType {
     PERMISSION_SCHEME("janitor.fields.ref.permissionScheme", "permissionScheme", true, true),
     NOTIFICATION_SCHEME("janitor.fields.ref.notificationScheme", "notificationScheme", true, true),
     ISSUE_SECURITY_SCHEME("janitor.fields.ref.issueSecurityScheme", "issueSecurityScheme", true, true),
-    GADGET("janitor.fields.ref.gadget", "gadget", false, true);
+    GADGET("janitor.fields.ref.gadget", "gadget", false, true),
+
+    /**
+     * 이슈 네비게이터 컬럼 설정(기획서 5.3(9)). 시스템 기본 컬럼 · 필터의 컬럼 ·
+     * 사용자 개인 컬럼 셋을 한 종류로 묶는다.
+     *
+     * <p>사용 증거로 센다. 누군가 이 필드를 목록에 띄우려고 <b>직접 골라 넣은</b>
+     * 것이기 때문이다 — 필드 설정·컨텍스트처럼 만들면 자동으로 생기는 것이 아니다.
+     * (실측: Jira 가 기본 컬럼에 넣어두는 커스텀 필드는 Development 하나뿐이고,
+     * 그 필드는 앱이 잠근 필드라 이미 [위험]이다.)
+     *
+     * <p>위험은 아니다. 지워도 목록에서 컬럼 하나가 빠질 뿐 동작이 깨지지 않는다.
+     */
+    COLUMN_LAYOUT("janitor.fields.ref.columnLayout", "columnLayout", false, true);
 
     private final String i18nKey;
     private final String code;

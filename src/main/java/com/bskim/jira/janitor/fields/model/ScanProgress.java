@@ -21,6 +21,7 @@ public final class ScanProgress {
         FILTERS("janitor.fields.stage.filters"),
         SCHEMES("janitor.fields.stage.schemes"),
         GADGETS("janitor.fields.stage.gadgets"),
+        COLUMN_LAYOUTS("janitor.fields.stage.columnLayouts"),
         FINISHING("janitor.fields.stage.finishing");
 
         private final String i18nKey;

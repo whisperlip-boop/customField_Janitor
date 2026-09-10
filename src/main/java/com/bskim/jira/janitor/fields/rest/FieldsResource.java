@@ -133,7 +133,7 @@ public class FieldsResource {
         csv.append("status,name,fieldId,numericId,type,typeAvailable,locked,issuesWithValue,valueRows,")
                 .append("lastValueChange,lastValueChangeAmbiguous,duplicateName,")
                 .append("managed,screens,fieldConfigs,contexts,workflows,filters,")
-                .append("permissionSchemes,notificationSchemes,issueSecuritySchemes,gadgets,")
+                .append("permissionSchemes,notificationSchemes,issueSecuritySchemes,gadgets,columnLayouts,")
                 .append("totalReferences,riskyReferences\n");
 
         for (FieldUsage field : result.getFields()) {
@@ -160,6 +160,7 @@ public class FieldsResource {
                     .append(row.notificationSchemes).append(',')
                     .append(row.issueSecuritySchemes).append(',')
                     .append(row.gadgets).append(',')
+                    .append(row.columnLayouts).append(',')
                     .append(row.totalReferences).append(',')
                     .append(row.riskyReferences).append('\n');
         }

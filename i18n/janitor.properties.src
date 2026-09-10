@@ -67,6 +67,10 @@ janitor.fields.ref.permissionScheme=Permission schemes
 janitor.fields.ref.notificationScheme=Notification schemes
 janitor.fields.ref.issueSecurityScheme=Issue security schemes
 janitor.fields.ref.gadget=Dashboard gadgets
+janitor.fields.ref.columnLayout=Issue navigator column
+janitor.fields.ref.columnLayout.system=System default columns
+janitor.fields.ref.columnLayout.filter=Filter columns
+janitor.fields.ref.columnLayout.personal=Personal columns
 
 janitor.fields.wf.transitionScreen=Transition screen
 janitor.fields.wf.condition=Condition
@@ -86,6 +90,7 @@ janitor.fields.stage.workflows=Scanning workflows
 janitor.fields.stage.filters=Scanning filters
 janitor.fields.stage.schemes=Scanning permission, notification and issue security schemes
 janitor.fields.stage.gadgets=Scanning dashboard gadgets
+janitor.fields.stage.columnLayouts=Scanning issue navigator columns
 janitor.fields.stage.finishing=Finishing
 
 janitor.fields.problems.title=Could not verify
@@ -216,6 +221,8 @@ janitor.help.ref.desc.issueSecurityScheme=An issue security scheme uses this fie
 janitor.help.ref.impact.issueSecurityScheme=Issues at that security level can become visible to nobody.
 janitor.help.ref.desc.gadget=A dashboard gadget holds this field in its configuration. The dashboard and gadget are named.
 janitor.help.ref.impact.gadget=That gadget errors or shows an empty result.
+janitor.help.ref.desc.columnLayout=Configurations that show this field as a column in the issue navigator. Split into system default columns, filter columns and personal columns. Personal ones are grouped into a single row per field with the number of users.
+janitor.help.ref.impact.columnLayout=The column disappears from those lists. Nothing breaks, but somebody picked this field to look at, so it counts as evidence of use.
 
 janitor.help.decide.title=Deciding what to delete - three groups
 janitor.help.decide.intro=Read the label and the numbers and sort each field into one of the three groups below. You make the decision; the change is made on the standard Jira screens.

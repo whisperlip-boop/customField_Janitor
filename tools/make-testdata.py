@@ -12,6 +12,7 @@ tools/make-workflow-fixture.sh 가 DB를 직접 고치고 Jira 재시작을 요�
 import json
 import os
 import sys
+import urllib.parse
 import urllib.error
 import urllib.request
 import uuid
@@ -61,6 +62,26 @@ def call(method, path, body=None, raw=False):
         with urllib.request.urlopen(request) as response:
             text = response.read().decode("utf-8")
             return response.status, (text if raw else (json.loads(text) if text else None))
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode("utf-8", "replace")
+
+
+def call_form(method, path, params, user=None, password=None):
+    """폼 인코딩 호출. 컬럼 설정 REST 는 JSON 이 아니라 columns= 를 여러 번 받는다.
+
+    user/password 를 주면 그 계정으로 부른다 — 개인 컬럼 설정은 본인만 바꿀 수 있다
+    (실측: admin 이 ?username=... 로 불러도 200 이 나오지만 <b>자기 설정</b>이 바뀐다).
+    """
+    import base64
+    body = "&".join("%s=%s" % (k, urllib.parse.quote(str(v))) for k, v in params)
+    request = urllib.request.Request(BASE + path, data=body.encode("utf-8"), method=method)
+    request.add_header("Content-Type", "application/x-www-form-urlencoded")
+    request.add_header("X-Atlassian-Token", "no-check")
+    token = base64.b64encode(("%s:%s" % (user or USER, password or PASS)).encode()).decode()
+    request.add_header("Authorization", "Basic " + token)
+    try:
+        with urllib.request.urlopen(request) as response:
+            return response.status, response.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode("utf-8", "replace")
 
@@ -328,12 +349,47 @@ def main():
         print("  통하는 parameter 형식을 못 찾았다 — 픽스처 F 는 알림 스킴만으로 진행한다")
 
     print("\n필터 준비 (이름 참조 / cf[ID] 참조)")
+    filter_ids = []
     for name, jql in (
             ("Janitor fixture by name", '"Janitor Fixture A" is not EMPTY'),
             ("Janitor fixture by id", "cf[%s] is not EMPTY" % a.replace("customfield_", "")),
     ):
         code, body = call("POST", "/rest/api/2/filter", {"name": name, "jql": jql, "favourite": False})
         print("  필터 %s -> %s %s" % (name, code, body if code >= 400 else ""))
+        if code in (200, 201) and isinstance(body, dict):
+            filter_ids.append(body["id"])
+
+    # 이슈 네비게이터 컬럼 설정 (픽스처 J). 세 종류를 전부 만든다 — 시스템 기본은
+    # Jira 가 이미 갖고 있고(Development), 여기서는 필터 컬럼 2개와 개인 컬럼 2명을
+    # 만든다.
+    #
+    # 둘씩 만드는 이유는 픽스처 F 와 같다: 대상이 하나뿐이면 중복 제거가 참조를
+    # 뭉개도 픽스처가 통과한다. 개인 컬럼은 필드마다 한 건으로 합치는 것이 의도이므로
+    # 사람 수(2)가 부가 정보에 나와야 한다.
+    #
+    # 기대: 필드 A 의 COLUMN_LAYOUT 참조 = 필터 2 + 개인 1(2명) = 3건.
+    print("\n이슈 네비게이터 컬럼 설정 (픽스처 J)")
+    for filter_id in filter_ids:
+        code, body = call_form("PUT", "/rest/api/2/filter/%s/columns" % filter_id,
+                               [("columns", "issuekey"), ("columns", a)])
+        print("  필터 %s 의 컬럼 -> %s%s" % (filter_id, code, "" if code < 400 else " " + body[:120]))
+    if not filter_ids:
+        print("  필터가 이미 있어 ID 를 못 받았다 — 컬럼은 앞선 실행에서 이미 설정되어 있다")
+
+    code, body = call_form("PUT", "/rest/api/2/user/columns",
+                           [("columns", "issuekey"), ("columns", a)])
+    print("  %s 의 개인 컬럼 -> %s%s" % (USER, code, "" if code < 400 else " " + body[:120]))
+    if second:
+        code, body = call_form("PUT", "/rest/api/2/user/columns",
+                               [("columns", "issuekey"), ("columns", a)],
+                               user=second, password=SECOND_PASS)
+        if code < 400:
+            print("  %s 의 개인 컬럼 -> %s" % (second, code))
+        else:
+            # 계정이 이미 있고 비밀번호를 모르면 여기서 401 이 난다. 실패가 아니다 —
+            # 개인 컬럼이 한 명뿐이 되어 "2명" 대신 "1명"으로 나올 뿐이다.
+            print("  %s 의 개인 컬럼 -> %s (JIRA_SECOND_PASS 를 주면 두 명이 된다)"
+                  % (second, code))
 
     # 워크플로 픽스처(E)는 XML 안에 필드 ID가 박혀야 한다. 인스턴스마다 다르므로
     # 여기서 실제 ID를 파일로 남겨 make-workflow-fixture.sh 가 치환에 쓰게 한다.

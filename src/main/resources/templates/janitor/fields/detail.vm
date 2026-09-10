@@ -164,15 +164,19 @@
                         <td>
                             #if ($ref.adminUrl)
                                 <a href="${action.contextPath}$ref.adminUrl">$action.escape($ref.targetName)</a>
-                            #else
+                            #elseif ($ref.targetName)
                                 $action.escape($ref.targetName)
+                            #else
+                                ## 대상 이름이 데이터에 없는 참조(예: 시스템 기본 컬럼).
+                                ## 종류 문구를 대상 자리에 그린다 — 빈 칸은 수집 실패로 읽힌다.
+                                $action.text($ref.detailI18nKey)
                             #end
                             #if ($ref.risky)
                                 <span class="aui-lozenge aui-lozenge-error">$action.text("janitor.fields.detail.risky")</span>
                             #end
                         </td>
                         <td>
-                            #if ($ref.detailI18nKey)
+                            #if ($ref.detailI18nKey && $ref.targetName)
                                 $action.text($ref.detailI18nKey)
                                 #if ($ref.detail)<div class="janitor-meta">$action.escape($ref.detail)</div>#end
                             #elseif ($ref.detail)

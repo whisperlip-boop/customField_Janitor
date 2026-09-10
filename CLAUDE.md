@@ -45,8 +45,15 @@ com.bskim.jira.janitor.fields
 ```
 
 새 참조 종류를 추가하려면: `ReferenceType`에 상수 하나, `ScanProgress.Stage`에 단계 하나,
-`collector/`에 `ReferenceCollector` 구현 하나, `Collectors.ALL`에 한 줄, i18n 키 두 개.
-그 외는 손댈 곳이 없다.
+`collector/`에 `ReferenceCollector` 구현 하나, `Collectors.ALL`에 한 줄, i18n 키
+(`janitor.fields.ref.*`, `janitor.fields.stage.*`, `janitor.help.ref.{desc,impact}.*`),
+그리고 **CSV 헤더(`FieldsResource`)와 `FieldSummaryDto`** — 이 둘만 종류를 이름으로
+열거한다(실측 32번. 오래 "그 외는 손댈 곳이 없다"고 적혀 있었는데 사실이 아니었다).
+설명서 표와 상세 화면의 그룹은 열거형을 순회하므로 자동이다.
+
+대상 이름이 데이터에 없는 참조(예: 시스템 기본 컬럼)는 `targetName`을 비우고 종류를
+`detailI18nKey`로 넘긴다. `detail.vm`이 그 키를 대상 자리에 그린다 — 스캔 스레드에는
+보는 사람의 로케일이 없어서 이름을 그때 만들 수 없기 때문이다.
 
 ## 언어 전환 (`LocaleText`)
 
@@ -144,6 +151,7 @@ IntersectionObserver 로 현재 위치를 강조하고, 없으면 색인은 그�
 - **스캔 스레드에는 인증·i18n 컨텍스트가 없다.** `getIssueOperationName()` 같은 API가
   빈 값을 준다. 번역이 필요하면 `I18nHelper.BeanFactory.getInstance(Locale)`로 직접 한다.
 - **`searchrequest.authorname`은 사용자 키(`JIRAUSER10000`)다.** `UserManager`로 풀어야 한다.
+  `columnlayout.username`도 같다 — 이름처럼 보이는 컬럼명에 속지 말 것(실측 32번).
 - **`Atlassian-Plugin-Key`가 설정되면 XML `<component-import>`가 금지된다**(AMPS가 빌드를 막음).
   그래서 Jira 기본 `JiraGlobalPermissionCondition`을 못 쓰고 `AdminOnlyCondition`을 직접 만들었다.
   `<Spring-Context>*</Spring-Context>`와 빈 없는 `plugin-context.xml`은 web fragment의
@@ -261,8 +269,8 @@ Sprint / Rank 가 Jira 관리 화면에도 안 보인다.
 
 ## 남은 일
 
-- v1.5: 이슈 네비게이터 컬럼 레이아웃 집계(DAO에 `getColumnLayoutCounts()`는 이미 있고
-  수집기만 없다), AO 스냅샷으로 재시작 후에도 결과 유지
+- ~~v1.5: 이슈 네비게이터 컬럼 레이아웃 집계~~ → v1.1.0 에서 넣었다(실측 32번)
+- v1.5: AO 스냅샷으로 재시작 후에도 결과 유지
 - v2: 심층 스캔 — `AO_*` 테이블의 문자열/CLOB 컬럼에서 `customfield_<id>` LIKE 검색.
   비용이 크므로 별도 버튼 + 소요 시간 경고 + 백그라운드 실행, 결과는
   "테이블명 / 행 ID / 어느 앱의 것으로 추측" 수준까지만 (의미 해석은 하지 않는다)

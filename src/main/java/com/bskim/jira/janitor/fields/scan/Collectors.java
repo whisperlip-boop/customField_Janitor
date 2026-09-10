@@ -1,5 +1,6 @@
 package com.bskim.jira.janitor.fields.scan;
 
+import com.bskim.jira.janitor.fields.scan.collector.ColumnLayoutCollector;
 import com.bskim.jira.janitor.fields.scan.collector.ContextCollector;
 import com.bskim.jira.janitor.fields.scan.collector.FieldConfigCollector;
 import com.bskim.jira.janitor.fields.scan.collector.FilterCollector;
@@ -28,7 +29,8 @@ public final class Collectors {
                     new WorkflowCollector(),
                     new FilterCollector(),
                     new SchemeCollector(),
-                    new GadgetCollector()));
+                    new GadgetCollector(),
+                    new ColumnLayoutCollector()));
 
     private Collectors() {
     }

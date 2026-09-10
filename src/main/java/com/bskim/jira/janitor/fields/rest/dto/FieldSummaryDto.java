@@ -45,6 +45,7 @@ public class FieldSummaryDto {
     public int notificationSchemes;
     public int issueSecuritySchemes;
     public int gadgets;
+    public int columnLayouts;
     public int totalReferences;
     public int riskyReferences;
 
@@ -85,6 +86,7 @@ public class FieldSummaryDto {
         this.notificationSchemes = field.getReferenceCount(ReferenceType.NOTIFICATION_SCHEME);
         this.issueSecuritySchemes = field.getReferenceCount(ReferenceType.ISSUE_SECURITY_SCHEME);
         this.gadgets = field.getReferenceCount(ReferenceType.GADGET);
+        this.columnLayouts = field.getReferenceCount(ReferenceType.COLUMN_LAYOUT);
         this.totalReferences = field.getTotalReferenceCount();
         this.riskyReferences = field.getRiskyReferenceCount();
 
