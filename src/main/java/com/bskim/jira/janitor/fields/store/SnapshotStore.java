@@ -17,7 +17,8 @@ import org.apache.log4j.Logger;
  * 요구에 그 위험을 살 이유가 없다.
  *
  * <p>SAL 의 {@code PluginSettings} 는 Jira 의 PropertySet 에 얹혀 있고 sal-api 는
- * 이미 provided 로 쓰고 있다. 새로 들이는 것이 없다.
+ * 이미 provided 로 쓰고 있다. 새로 들이는 것이 없다. 값이 길면 {@code propertytext},
+ * 짧으면 {@code propertystring} 에 들어간다 — SAL 이 길이를 보고 고른다(docs/00 33번).
  */
 public final class SnapshotStore {
 
@@ -28,6 +29,31 @@ public final class SnapshotStore {
 
     /** 심층 스캔 결과. 따로 둔다 — 두 스캔은 서로 다른 때에 끝나고 수명도 다르다. */
     public static final String DEEP_KEY = "com.bskim.jira.janitor.fields.deepSnapshot";
+
+    /**
+     * 읽기 결과. <b>"없다"와 "못 읽었다"를 가른다.</b>
+     *
+     * <p>둘을 같은 null 로 돌려주면 부르는 쪽이 "스냅샷이 없구나"로 잠그고 다시 읽지
+     * 않는다. 재기동 직후 SAL 서비스가 아직 안 떠서 못 읽은 것이었다면, 그 뒤의 첫
+     * 스캔이 실패할 때 <b>좋은 스냅샷 위에 빈 결과를 덮어쓴다</b>(리뷰 지적 — 34번의
+     * "쓰기 전에 읽는다"가 "읽었는데 못 찾았다"로 우회된다).
+     */
+    public static final class Loaded {
+
+        /** 저장소에 닿았는가. 거짓이면 {@link #json} 은 의미가 없고 다시 읽어야 한다. */
+        public final boolean reachable;
+        /** 저장된 값. 닿았는데 없으면 null. */
+        public final String json;
+
+        Loaded(boolean reachable, String json) {
+            this.reachable = reachable;
+            this.json = json;
+        }
+
+        public boolean isEmpty() {
+            return json == null || json.trim().isEmpty();
+        }
+    }
 
     private final String key;
 
@@ -61,42 +87,38 @@ public final class SnapshotStore {
         return factory.createGlobalSettings();
     }
 
-    /** 저장. 실패는 로그만 남기고 삼킨다 — 스냅샷 때문에 스캔이 죽으면 안 된다. */
-    public void save(String json) {
-        try {
-            PluginSettings settings = settings();
-            if (settings != null) {
-                settings.put(key, json);
-            }
-        } catch (Throwable t) {
-            log.warn("스냅샷 저장 실패", t);
-        }
-    }
-
-    /** 읽기. 없거나 실패면 null. */
-    public String load() {
+    /**
+     * 저장.
+     *
+     * @return 실제로 썼으면 true. 실패는 로그만 남기고 삼킨다 — 스냅샷 때문에 스캔이
+     *         죽으면 안 된다.
+     */
+    public boolean save(String json) {
         try {
             PluginSettings settings = settings();
             if (settings == null) {
-                return null;
+                return false;
             }
-            Object value = settings.get(key);
-            return value instanceof String ? (String) value : null;
+            settings.put(key, json);
+            return true;
         } catch (Throwable t) {
-            log.warn("스냅샷 읽기 실패", t);
-            return null;
+            log.warn("스냅샷 저장 실패", t);
+            return false;
         }
     }
 
-    /** 지우기. 스키마가 안 맞는 스냅샷을 버릴 때 쓴다. */
-    public void clear() {
+    /** 읽기. 저장소에 못 닿으면 {@code reachable=false} 다 — 그때는 잠그지 말고 다시 읽어야 한다. */
+    public Loaded load() {
         try {
             PluginSettings settings = settings();
-            if (settings != null) {
-                settings.remove(key);
+            if (settings == null) {
+                return new Loaded(false, null);
             }
+            Object value = settings.get(key);
+            return new Loaded(true, value instanceof String ? (String) value : null);
         } catch (Throwable t) {
-            log.warn("스냅샷 삭제 실패", t);
+            log.warn("스냅샷 읽기 실패", t);
+            return new Loaded(false, null);
         }
     }
 }

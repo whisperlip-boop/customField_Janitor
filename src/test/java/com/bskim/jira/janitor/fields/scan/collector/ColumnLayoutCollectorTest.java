@@ -20,10 +20,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * 컬럼 설정 세 종류의 분류와 개인 설정 합치기.
  *
- * <p>{@code collect(context, rows)} 로 DAO를 건너뛴다. 사용자 이름 조회는
- * Jira 없이 돌면 {@code ComponentAccessor} 가 예외를 내는데, 수집기가 그것을
- * 잡고 키를 그대로 쓰므로 이 테스트는 Jira 없이 돈다 — <b>그 폴백이 살아 있는지도
- * 함께 고정한다.</b> 폴백이 사라지면 여기서 먼저 깨진다.
+ * <p>{@code collect(context, rows, users)} 로 DAO 와 사용자 조회를 건너뛴다.
  */
 public class ColumnLayoutCollectorTest {
 
@@ -39,8 +36,16 @@ public class ColumnLayoutCollectorTest {
         return context.getFields().iterator().next().getReferences(ReferenceType.COLUMN_LAYOUT);
     }
 
+    /** 키를 그대로 이름으로 쓰는 풀이. Jira 없이 돈다. */
+    private static final Users RAW = new Users(new Users.Resolver() {
+        @Override
+        public String displayName(String userKey) {
+            return null;
+        }
+    });
+
     private static void collect(ScanContext context, ColumnLayoutRow... rows) {
-        new ColumnLayoutCollector().collect(context, Arrays.asList(rows));
+        new ColumnLayoutCollector().collect(context, Arrays.asList(rows), RAW);
     }
 
     @Test
@@ -112,7 +117,7 @@ public class ColumnLayoutCollectorTest {
         for (int i = 0; i < 8; i++) {
             rows.add(new ColumnLayoutRow(10200L + i, "JIRAUSER1010" + i, null, null, CF));
         }
-        new ColumnLayoutCollector().collect(c, rows);
+        new ColumnLayoutCollector().collect(c, rows, RAW);
 
         String detail = refs(c).get(0).getDetail();
         assertTrue(detail, detail.startsWith("8 · "));
@@ -127,6 +132,43 @@ public class ColumnLayoutCollectorTest {
                 new ColumnLayoutRow(10200L, "JIRAUSER10000", null, null, CF));
 
         assertTrue(refs(c).get(0).getDetail().startsWith("1 · "));
+    }
+
+    @Test
+    public void 이름이_같은_두_사람은_두_명이다() {
+        // 전에는 표시 이름으로 중복 제거해 동명이인이 한 명으로 합쳐졌다(리뷰 지적).
+        // 모든 판단은 ID(키) 기준이다 — CLAUDE.md 불변 2.
+        Users sameName = new Users(new Users.Resolver() {
+            @Override
+            public String displayName(String userKey) {
+                return "김철수";
+            }
+        });
+        ScanContext c = context();
+        new ColumnLayoutCollector().collect(c, Arrays.asList(
+                new ColumnLayoutRow(10200L, "JIRAUSER10100", null, null, CF),
+                new ColumnLayoutRow(10201L, "JIRAUSER10200", null, null, CF)), sameName);
+
+        String detail = refs(c).get(0).getDetail();
+        assertTrue(detail, detail.startsWith("2 · 김철수"));
+    }
+
+    @Test
+    public void 같은_사용자는_한_번만_이름을_묻는다() {
+        final int[] calls = {0};
+        Users counting = new Users(new Users.Resolver() {
+            @Override
+            public String displayName(String userKey) {
+                calls[0]++;
+                return "누구";
+            }
+        });
+        ScanContext c = context();
+        new ColumnLayoutCollector().collect(c, Arrays.asList(
+                new ColumnLayoutRow(10200L, "JIRAUSER10000", null, null, CF),
+                new ColumnLayoutRow(10200L, "JIRAUSER10000", null, null, CF),
+                new ColumnLayoutRow(10200L, "JIRAUSER10000", null, null, CF)), counting);
+        assertEquals(1, calls[0]);
     }
 
     @Test

@@ -1,14 +1,15 @@
 package com.bskim.jira.janitor.fields.deep;
 
-import com.atlassian.jira.component.ComponentAccessor;
-import com.bskim.jira.janitor.fields.dao.DeepScanDao;
 import com.bskim.jira.janitor.fields.dao.CustomFieldRow;
+import com.bskim.jira.janitor.fields.dao.DeepScanDao;
 import com.bskim.jira.janitor.fields.dao.JanitorDao;
 import com.bskim.jira.janitor.fields.model.FieldUsage;
 import com.bskim.jira.janitor.fields.model.ScanProblem;
 import com.bskim.jira.janitor.fields.scan.ScanContext;
 import com.bskim.jira.janitor.fields.scan.ScanFailure;
-import com.bskim.jira.janitor.fields.scan.ScanService;
+import com.bskim.jira.janitor.fields.store.PluginVersion;
+import com.bskim.jira.janitor.fields.store.ScanLock;
+import com.bskim.jira.janitor.fields.store.SnapshotMerge;
 import com.bskim.jira.janitor.fields.store.SnapshotStore;
 import org.apache.log4j.Logger;
 
@@ -17,7 +18,6 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -32,7 +32,10 @@ import java.util.concurrent.atomic.AtomicReference;
  *   <li>결과도 따로 담는다({@link DeepScanResult}).</li>
  * </ul>
  *
- * <p>일반 스캔과 동시에 돌지 않는다. 둘 다 DB를 두드리므로 겹치면 서로를 느리게 한다.
+ * <p>일반 스캔과 {@link ScanLock} 하나를 나눠 쓴다. 둘 다 DB를 두드리므로 겹치면 서로를
+ * 느리게 한다. 스냅샷 규칙(읽기 전에 쓰지 않는다, 버전을 못 읽으면 쓰지 않는다,
+ * 실패도 저장한다)은 {@code ScanService} 와 같다 — 그 규칙이 여기만 빠져 있던 것이
+ * 리뷰에서 나온 결함이었다.
  */
 public final class DeepScanService {
 
@@ -40,21 +43,15 @@ public final class DeepScanService {
 
     private static final DeepScanService INSTANCE = new DeepScanService();
 
-    /** 한 필드가 한 테이블에서 가질 수 있는 행 표기 수. 나머지는 건수로만 남는다. */
-    static final int HITS_PER_FIELD_TABLE = 20;
-
-    private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicReference<DeepScanProgress> progress =
             new AtomicReference<DeepScanProgress>(DeepScanProgress.idle());
     private final AtomicReference<DeepScanResult> lastResult = new AtomicReference<DeepScanResult>();
-    /**
-     * 마지막 실패. 진행률은 화면을 새로 그리면 사라지고, 재기동하면 더더욱 사라진다.
-     * 그러면 관리자는 <b>실패한 스캔 다음에 살아난 옛 결과</b>를 최신으로 믿는다 —
-     * 일반 스캔에서 두 번 고친 것과 같은 모양이다(docs/00 18·34번).
-     */
     private final AtomicReference<ScanFailure> lastFailure = new AtomicReference<ScanFailure>();
 
     private boolean snapshotRead = false;
+    /** 잠기지 않는 두 조건의 WARN 을 한 번만 내기 위한 표시. 1.5초 폴링마다 남기면 로그가 넘친다. */
+    private boolean warnedUnknownVersion = false;
+    private boolean warnedUnreachable = false;
 
     private DeepScanService() {
     }
@@ -64,7 +61,7 @@ public final class DeepScanService {
     }
 
     public boolean isRunning() {
-        return running.get();
+        return ScanLock.getInstance().isHeldBy(ScanLock.DEEP);
     }
 
     public DeepScanProgress getProgress() {
@@ -88,12 +85,8 @@ public final class DeepScanService {
      * @return 이미 돌고 있거나 <b>일반 스캔이 돌고 있으면</b> false. 화면은 409를 준다.
      */
     public boolean start() {
-        // 일반 스캔과 마찬가지로 쓰기보다 읽기가 먼저다(docs/00 34번).
         restoreSnapshot();
-        if (ScanService.getInstance().isRunning()) {
-            return false;
-        }
-        if (!running.compareAndSet(false, true)) {
+        if (!ScanLock.getInstance().tryAcquire(ScanLock.DEEP)) {
             return false;
         }
         final Date startedAt = new Date();
@@ -115,12 +108,11 @@ public final class DeepScanService {
                     String message = e.getClass().getSimpleName()
                             + (e.getMessage() == null ? "" : ": " + e.getMessage());
                     lastFailure.set(new ScanFailure(startedAt, new Date(), message));
-                    // 실패도 저장한다. 결과만 남기면 재기동 뒤 옛 결과가 흔적 없이 살아난다.
                     saveSnapshot();
                     progress.set(new DeepScanProgress(DeepScanProgress.State.FAILED, 0, 0, null,
                             startedAt, message));
                 } finally {
-                    running.set(false);
+                    ScanLock.getInstance().release(ScanLock.DEEP);
                 }
             }
         }, "custom-field-janitor-deep-scan");
@@ -133,47 +125,56 @@ public final class DeepScanService {
         DeepScanDao dao = new DeepScanDao();
         ScanContext context = fieldContext();
         List<ScanProblem> problems = new ArrayList<ScanProblem>();
+        Map<Long, List<DeepTableMatch>> matches = new LinkedHashMap<Long, List<DeepTableMatch>>();
 
         List<DeepTable> tables = dao.listTables();
         long rows = 0;
-        for (DeepTable table : tables) {
-            rows += Math.max(0, table.getRowCount());
-        }
-
-        Map<Long, List<DeepHit>> hits = new LinkedHashMap<Long, List<DeepHit>>();
         int index = 0;
         for (DeepTable table : tables) {
             index++;
             progress.set(new DeepScanProgress(DeepScanProgress.State.RUNNING, index, tables.size(),
                     table.getName(), startedAt, null));
+
+            // 행 수 → 조회, 테이블마다 따로. 못 세면 그 사실을 남긴다 — 0 으로 접으면
+            // 합계가 조용히 줄고, 관리자가 보는 비용 안내가 거짓이 된다.
             try {
-                for (String[] row : dao.findRows(table)) {
+                rows += dao.countRows(table);
+            } catch (Throwable e) {
+                problems.add(new ScanProblem("deep", table.getName(), "행 수를 못 셌다: " + describe(e)));
+            }
+
+            // 테이블 하나가 실패해도 나머지는 훑는다. Exception 이 아니라 Throwable 이다 —
+            // 거대 CLOB 의 OutOfMemoryError 나 드라이버 차이의 NoSuchMethodError 가
+            // 테이블별 catch 를 지나쳐 스캔 전체를 죽이면 나머지 200개의 결과를 잃는다.
+            try {
+                DeepScanDao.Rows found = dao.findRows(table);
+                for (String[] row : found.rows) {
                     for (FieldUsage field : context.findReferencedFields(row[1])) {
-                        add(hits, field.getNumericId(), new DeepHit(table.getName(), row[0]));
+                        matchOf(matches, field.getNumericId(), table.getName()).add(row[0]);
                     }
                 }
-            } catch (Exception e) {
-                // 테이블 하나가 실패해도 나머지는 훑는다. 앱 하나 때문에 전체를 버리지 않는다.
-                problems.add(new ScanProblem("deep", table.getName(),
-                        e.getClass().getSimpleName() + (e.getMessage() == null ? "" : ": " + e.getMessage())));
+                if (found.truncated) {
+                    // 조용히 자르면 상세 화면이 "발견되지 않았습니다"를 단정문으로 낸다.
+                    problems.add(new ScanProblem("deep", table.getName(),
+                            "일치 행이 " + DeepScanDao.ROW_LIMIT + "개를 넘어 뒷부분은 보지 않았다"));
+                }
+            } catch (Throwable e) {
+                problems.add(new ScanProblem("deep", table.getName(), describe(e)));
             }
         }
 
-        return new DeepScanResult(startedAt, new Date(), tables.size(),
-                new ArrayList<String>(DeepScanDao.SKIPPED_PREFIXES), rows, hits, problems);
+        return new DeepScanResult(startedAt, new Date(), tables.size(), rows, matches, problems);
     }
 
     /**
      * 문자열에서 필드를 찾아내는 판. <b>일반 스캔과 같은 확정 매칭</b>을 쓴다
      * ({@code customfield_<id>} 표기만, 숫자 단독은 안 본다 — docs/00 4번).
      *
-     * <p>필드 목록은 마지막 스캔 결과가 있으면 그걸 쓰고, 없으면 DB에서 읽는다.
-     * 심층 스캔만 먼저 돌려도 동작해야 하기 때문이다.
+     * <p>필드 목록은 <b>항상</b> DB에서 읽는다. 전에는 마지막 일반 스캔 결과가 있으면
+     * 그걸 썼는데, 그 결과는 몇 주 전 스냅샷일 수 있어 그 뒤에 만든 필드를 심층 스캔이
+     * 영영 못 봤다(리뷰 지적). 쿼리 하나이고, 이제부터 훑을 AO 테이블 어느 것보다 싸다.
      */
     private ScanContext fieldContext() {
-        if (ScanService.getInstance().getLastResult() != null) {
-            return new ScanContext(ScanService.getInstance().getLastResult().getFields());
-        }
         List<FieldUsage> fields = new ArrayList<FieldUsage>();
         for (CustomFieldRow row : new JanitorDao().getCustomFieldRows()) {
             fields.add(new FieldUsage(row.getId(), row.getName(), row.getTypeKey(), row.getTypeKey()));
@@ -181,73 +182,76 @@ public final class DeepScanService {
         return new ScanContext(fields);
     }
 
-    private static void add(Map<Long, List<DeepHit>> hits, long fieldId, DeepHit hit) {
-        List<DeepHit> forField = hits.get(fieldId);
+    private static DeepTableMatch matchOf(Map<Long, List<DeepTableMatch>> matches, long fieldId, String table) {
+        List<DeepTableMatch> forField = matches.get(fieldId);
         if (forField == null) {
-            forField = new ArrayList<DeepHit>();
-            hits.put(fieldId, forField);
+            forField = new ArrayList<DeepTableMatch>();
+            matches.put(fieldId, forField);
         }
-        int sameTable = 0;
-        for (DeepHit existing : forField) {
-            if (existing.getTable().equals(hit.getTable())) {
-                sameTable++;
-            }
+        // 행은 테이블 순서로 오므로 이 필드의 마지막 항목이 지금 테이블이면 그것이다.
+        if (!forField.isEmpty() && forField.get(forField.size() - 1).getTable().equals(table)) {
+            return forField.get(forField.size() - 1);
         }
-        // 한 테이블이 결과를 뒤덮지 않게 한다. 넘으면 그 행은 버린다 — 관리자가
-        // 봐야 하는 것은 "어느 앱 테이블에 있다"이지 500개 행 번호가 아니다.
-        if (sameTable < HITS_PER_FIELD_TABLE) {
-            forField.add(hit);
-        }
+        DeepTableMatch match = new DeepTableMatch(table);
+        forField.add(match);
+        return match;
     }
 
-    private synchronized void restoreSnapshot() {
+    private static String describe(Throwable e) {
+        return e.getClass().getSimpleName() + (e.getMessage() == null ? "" : ": " + e.getMessage());
+    }
+
+    /** 규칙은 {@code ScanService.restoreSnapshot()} 과 같다. 주석도 그쪽에 있다. */
+    private synchronized boolean restoreSnapshot() {
         if (snapshotRead) {
-            return;
+            return true;
+        }
+        String version = PluginVersion.current();
+        if (!PluginVersion.isKnown(version)) {
+            if (!warnedUnknownVersion) {
+                warnedUnknownVersion = true;
+                log.warn("플러그인 버전을 못 읽어 심층 스냅샷을 쓰지 않는다");
+            }
+            return false;
+        }
+        SnapshotStore.Loaded loaded = new SnapshotStore(SnapshotStore.DEEP_KEY).load();
+        if (!loaded.reachable) {
+            if (!warnedUnreachable) {
+                warnedUnreachable = true;
+                log.warn("심층 스냅샷 저장소에 아직 닿지 못했다 — 다음 요청에서 다시 읽는다");
+            }
+            return false;
         }
         snapshotRead = true;
-        try {
-            String raw = new SnapshotStore(SnapshotStore.DEEP_KEY).load();
-            DeepSnapshotCodec.Snapshot restored = DeepSnapshotCodec.read(raw, pluginVersion());
-            if (restored != null) {
-                if (restored.result != null) {
-                    lastResult.set(restored.result);
-                }
-                if (restored.failure != null) {
-                    lastFailure.set(restored.failure);
-                }
-                log.warn("심층 스캔 스냅샷을 복원했다: 필드 "
-                        + (restored.result == null ? 0 : restored.result.getFieldCount())
-                        + "개" + (restored.failure == null ? "" : " (마지막 스캔은 실패였다)"));
-            } else if (raw != null && !raw.trim().isEmpty()) {
-                log.warn("저장된 심층 스캔 스냅샷을 버렸다(판 불일치) — 다시 돌려야 한다");
-            }
-        } catch (Throwable t) {
-            log.warn("심층 스캔 스냅샷을 읽지 못했다", t);
+        if (loaded.isEmpty()) {
+            return true;
         }
+        try {
+            DeepSnapshotCodec.Snapshot restored = DeepSnapshotCodec.read(loaded.json, version);
+            if (restored == null) {
+                log.warn("저장된 심층 스캔 스냅샷을 버렸다(판 불일치) — 다시 돌려야 한다");
+                return true;
+            }
+            SnapshotMerge.apply(lastResult, lastFailure, restored.result, restored.failure);
+            log.warn("심층 스캔 스냅샷을 복원했다: 필드 "
+                    + (restored.result == null ? 0 : restored.result.getFieldCount())
+                    + "개" + (restored.failure == null ? "" : " (마지막 스캔은 실패였다)"));
+        } catch (Throwable t) {
+            log.warn("심층 스캔 스냅샷을 해석하지 못했다", t);
+        }
+        return true;
     }
 
     private void saveSnapshot() {
+        if (!restoreSnapshot()) {
+            log.warn("심층 스냅샷을 아직 읽지 못해 이번 결과를 저장하지 않는다");
+            return;
+        }
         try {
             new SnapshotStore(SnapshotStore.DEEP_KEY)
-                    .save(DeepSnapshotCodec.write(lastResult.get(), lastFailure.get(), pluginVersion()));
+                    .save(DeepSnapshotCodec.write(lastResult.get(), lastFailure.get(), PluginVersion.current()));
         } catch (Throwable t) {
             log.warn("심층 스캔 스냅샷을 저장하지 못했다", t);
         }
-    }
-
-    private static String pluginVersion() {
-        try {
-            com.atlassian.plugin.Plugin plugin = ComponentAccessor.getPluginAccessor()
-                    .getPlugin("com.bskim.jira.janitor");
-            if (plugin != null && plugin.getPluginInformation() != null) {
-                String version = plugin.getPluginInformation().getVersion();
-                if (version != null && !version.trim().isEmpty()) {
-                    return version;
-                }
-            }
-        } catch (Throwable t) {
-            log.debug("플러그인 버전을 못 읽었다", t);
-        }
-        return "unknown";
     }
 }

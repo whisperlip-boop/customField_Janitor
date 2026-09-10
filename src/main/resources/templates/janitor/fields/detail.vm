@@ -213,27 +213,30 @@
    이 필드 ID가 들어 있다"까지다. 그 차이를 제목과 안내 문구가 계속 말해야 한다. *#
 #if ($action.deepResultAvailable)
     <div class="janitor-refgroup janitor-deep">
-        <h3>$action.text("janitor.fields.deep.detail.title") ($action.deepHits.size())</h3>
+        <h3>$action.text("janitor.fields.deep.detail.title") ($action.deepMatchCount)</h3>
         <p class="janitor-meta">$action.text("janitor.fields.deep.detail.caveat")</p>
-        #if ($action.deepHits.size() == 0)
+        #if ($action.deepMatches.size() == 0)
             <p class="janitor-none">$action.text("janitor.fields.deep.detail.none")</p>
         #else
             <table class="aui">
                 <thead>
                 <tr>
                     <th>$action.text("janitor.fields.deep.detail.table")</th>
+                    <th class="janitor-num">$action.text("janitor.fields.deep.detail.count")</th>
                     <th>$action.text("janitor.fields.deep.detail.row")</th>
                 </tr>
                 </thead>
                 <tbody>
-                #foreach ($hit in $action.deepHits)
+                #foreach ($match in $action.deepMatches)
                     <tr>
-                        <td>$action.escape($hit.table)</td>
+                        <td>$action.escape($match.table)</td>
+                        <td class="janitor-num">$match.matchCount</td>
                         <td>
-                            #if ($hit.rowId)
-                                $action.escape($hit.rowId)
-                            #else
+                            #if ($match.sampleRowIds.size() == 0)
                                 <span class="janitor-cellnote">-</span>
+                            #else
+                                #foreach ($rowId in $match.sampleRowIds)#if ($velocityCount > 1), #end$action.escape($rowId)#end
+                                #if ($match.overflow > 0)<span class="janitor-cellnote"> +$match.overflow</span>#end
                             #end
                         </td>
                     </tr>

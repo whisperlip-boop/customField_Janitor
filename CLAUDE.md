@@ -47,9 +47,12 @@ com.bskim.jira.janitor.fields
 새 참조 종류를 추가하려면: `ReferenceType`에 상수 하나, `ScanProgress.Stage`에 단계 하나,
 `collector/`에 `ReferenceCollector` 구현 하나, `Collectors.ALL`에 한 줄, i18n 키
 (`janitor.fields.ref.*`, `janitor.fields.stage.*`, `janitor.help.ref.{desc,impact}.*`),
-그리고 **CSV 헤더(`FieldsResource`)와 `FieldSummaryDto`** — 이 둘만 종류를 이름으로
-열거한다(실측 32번. 오래 "그 외는 손댈 곳이 없다"고 적혀 있었는데 사실이 아니었다).
-설명서 표와 상세 화면의 그룹은 열거형을 순회하므로 자동이다.
+그리고 **CSV 헤더(`FieldsResource`)와 `FieldSummaryDto`** 에 한 칸씩(실측 32번. 오래
+"그 외는 손댈 곳이 없다"고 적혀 있었는데 사실이 아니었다).
+**목록 화면(`list.vm`)에는 컬럼을 추가하지 않는다** — 그 표는 v1.0 부터 화면·워크플로·
+필터·가젯 네 종류만 보이고 나머지는 합계에만 들어간다(실측 32번의 판단). 새 종류를
+목록에 보이게 하고 싶다면 그건 별도 결정이다. 설명서 표와 상세 화면의 그룹은 열거형을
+순회하므로 자동이다.
 
 대상 이름이 데이터에 없는 참조(예: 시스템 기본 컬럼)는 `targetName`을 비우고 종류를
 `detailI18nKey`로 넘긴다. `detail.vm`이 그 키를 대상 자리에 그린다 — 스캔 스레드에는

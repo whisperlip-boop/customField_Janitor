@@ -35,6 +35,15 @@ public class JanitorDao {
 
     private static final Logger log = Logger.getLogger(JanitorDao.class);
 
+    /**
+     * "커스텀 필드 표기를 포함한다"는 LIKE 절. 세 DAO 쿼리가 같은 리터럴을 손으로
+     * 복사하고 있었다(리뷰 지적). LIKE 의 {@code _} 는 와일드카드라 ESCAPE 가 필수다 —
+     * 한 곳만 빠뜨리면 그 쿼리만 조용히 넓어진다.
+     */
+    public static final String LIKE_CONTAINS_CUSTOMFIELD = "LIKE '%customfield!_%' ESCAPE '!'";
+    /** 값 전체가 {@code customfield_<id>} 형식인 컬럼용(앞에 다른 글자가 없다). */
+    public static final String LIKE_STARTS_CUSTOMFIELD = "LIKE 'customfield!_%' ESCAPE '!'";
+
     private final DatabaseAccessor databaseAccessor;
 
     public JanitorDao() {
@@ -282,7 +291,7 @@ public class JanitorDao {
                 // LIKE 에서 _ 는 임의의 한 글자다. 여기서는 리터럴로 쓰려는 것이므로
                 // ESCAPE 를 준다. 지금 데이터로는 결과가 같지만(키가 customfield_숫자
                 // 뿐) 의도한 쿼리가 아니고 다른 DB로 옮길 때 오탐이 된다.
-                + " WHERE gup.userprefvalue LIKE '%customfield!_%' ESCAPE '!'";
+                + " WHERE gup.userprefvalue " + LIKE_CONTAINS_CUSTOMFIELD;
 
         return databaseAccessor.executeQuery(new ConnectionFunction<List<GadgetPrefRow>>() {
             @Override
@@ -333,7 +342,7 @@ public class JanitorDao {
                 + " JOIN " + table("columnlayout") + " cl ON cli.columnlayout = cl.id"
                 + " LEFT JOIN " + table("searchrequest") + " sr ON cl.searchrequest = sr.id"
                 // LIKE 의 _ 는 와일드카드다. 리터럴로 쓰려는 것이므로 ESCAPE 를 준다.
-                + " WHERE cli.fieldidentifier LIKE 'customfield!_%' ESCAPE '!'";
+                + " WHERE cli.fieldidentifier " + LIKE_STARTS_CUSTOMFIELD;
 
         return databaseAccessor.executeQuery(new ConnectionFunction<List<ColumnLayoutRow>>() {
             @Override
@@ -385,11 +394,18 @@ public class JanitorDao {
      * (실측 대상 docker Jira는 {@code public})에서 프리픽스가 없으면 쿼리가 깨진다.
      */
     private String table(String name) {
+        String schema = schemaName();
+        return schema == null ? name : schema + "." + name;
+    }
+
+    /**
+     * dbconfig 의 {@code schema-name}. 없으면 null. {@link DeepScanDao} 도 이 값을 쓴다 —
+     * 저쪽이 스키마를 안 붙여서 PostgreSQL 전용 스키마 설정에서는 심층 스캔 전체가
+     * "relation does not exist"로 죽는 결함이 있었다(리뷰 지적).
+     */
+    public String schemaName() {
         String schema = databaseAccessor.getSchemaName().orElse(null);
-        if (schema == null || schema.trim().isEmpty()) {
-            return name;
-        }
-        return schema.trim() + "." + name;
+        return schema == null || schema.trim().isEmpty() ? null : schema.trim();
     }
 
     static String normalizeName(String name) {

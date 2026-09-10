@@ -21,9 +21,9 @@ import static org.junit.Assert.assertTrue;
 /**
  * 심층 스캔에서 DB 없이 고정할 수 있는 것들.
  *
- * <p>SQL 문자열을 검사하는 테스트가 이상해 보일 수 있는데, <b>인용을 빠뜨리면
- * PostgreSQL 에서만 깨진다</b>(AO 테이블 이름은 대문자라 인용 없이 쓰면 소문자로
- * 접힌다). H2 로 개발하고 PostgreSQL 에 배포하는 이 프로젝트에서 그건 배포 후에야
+ * <p>SQL 문자열을 검사하는 테스트가 이상해 보일 수 있는데, <b>인용·스키마를 빠뜨리면
+ * PostgreSQL 에서만 깨진다</b>(AO 테이블 이름은 대문자, schema-name 은 search_path 에
+ * 없을 수 있다). H2 로 개발하고 PostgreSQL 에 배포하는 이 프로젝트에서 그건 배포 후에야
  * 드러나는 결함이다. 그래서 문자열로 고정한다.
  */
 public class DeepScanTest {
@@ -35,43 +35,57 @@ public class DeepScanTest {
 
     @Test
     public void 식별자를_인용한다() {
-        String sql = DeepScanDao.selectSql(table(), "\"");
+        String sql = DeepScanDao.selectSql(table(), "\"", null);
         assertTrue(sql, sql.contains("FROM \"AO_60DB71_ESTIMATESTATISTIC\""));
         assertTrue(sql, sql.contains("\"FIELD_ID\" LIKE"));
         assertTrue(sql, sql.startsWith("SELECT \"ID\", \"FIELD_ID\", \"TYPE_ID\" FROM"));
     }
 
     @Test
+    public void 스키마가_있으면_붙인다() {
+        // schema-name 이 search_path 에 없는 PostgreSQL 에서 안 붙이면 모든 테이블이
+        // "relation does not exist" 로 죽고, 결과는 "200개를 훑었는데 0건"으로 완전해 보인다.
+        String sql = DeepScanDao.selectSql(table(), "\"", "jiraschema");
+        assertTrue(sql, sql.contains("FROM jiraschema.\"AO_60DB71_ESTIMATESTATISTIC\""));
+    }
+
+    @Test
     public void 컬럼마다_OR_로_묶어_테이블당_쿼리_하나다() {
-        String sql = DeepScanDao.selectSql(table(), "\"");
+        String sql = DeepScanDao.selectSql(table(), "\"", null);
         assertEquals(1, sql.split("SELECT").length - 1);
         assertTrue(sql, sql.contains("\"FIELD_ID\" LIKE '%customfield!_%' ESCAPE '!' OR "
                 + "\"TYPE_ID\" LIKE '%customfield!_%' ESCAPE '!'"));
     }
 
     @Test
-    public void LIKE_의_밑줄을_이스케이프한다() {
-        // customfield_ 의 _ 는 와일드카드가 아니라 리터럴이다(docs/00 21번과 같은 함정).
-        assertTrue(DeepScanDao.selectSql(table(), "\"").contains("ESCAPE '!'"));
+    public void 기본키가_있으면_그_순서로_정렬한다() {
+        // 상한이 있는 조회에 순서가 없으면 DB 가 임의의 500행을 주고 두 번 돌리면 결과가 다르다.
+        assertTrue(DeepScanDao.selectSql(table(), "\"", null).endsWith(" ORDER BY \"ID\""));
     }
 
     @Test
-    public void 기본키가_없으면_컬럼만_고른다() {
+    public void 기본키가_없으면_컬럼만_고르고_정렬도_없다() {
         DeepTable noKey = new DeepTable("AO_ABC123_THING", null, Arrays.asList("BODY"), 3L);
-        String sql = DeepScanDao.selectSql(noKey, "\"");
+        String sql = DeepScanDao.selectSql(noKey, "\"", null);
         assertTrue(sql, sql.startsWith("SELECT \"BODY\" FROM \"AO_ABC123_THING\""));
+        assertFalse(sql, sql.contains("ORDER BY"));
     }
 
     @Test
     public void 인용을_지원하지_않는_DB면_인용하지_않는다() {
-        String sql = DeepScanDao.selectSql(table(), "");
-        assertTrue(sql, sql.contains("FROM AO_60DB71_ESTIMATESTATISTIC"));
+        assertTrue(DeepScanDao.selectSql(table(), "", null).contains("FROM AO_60DB71_ESTIMATESTATISTIC"));
+    }
+
+    @Test
+    public void 메타데이터_패턴의_이스케이프는_드라이버_것을_쓴다() {
+        // Oracle 은 '/' 다. '\' 를 박아 두면 그 DB 에서 테이블 0개가 나오고 스캔은 "성공"한다.
+        assertEquals("AO\\_%", DeepScanDao.tablePattern("\\"));
+        assertEquals("AO/_%", DeepScanDao.tablePattern("/"));
+        assertEquals("AO\\_%", DeepScanDao.tablePattern(null));
     }
 
     @Test
     public void 감사_로그_프리픽스는_건너뛴다() {
-        // 거기 걸리는 것은 참조가 아니라 이력이다(docs/00 35번). 포함하면 한 번이라도
-        // 설정된 모든 필드가 걸린다.
         assertTrue(DeepScanDao.isSkipped("AO_C77861_AUDIT_ENTITY"));
         assertTrue(DeepScanDao.isSkipped("AO_C77861_AUDIT_CHANGED_VALUE"));
         assertFalse(DeepScanDao.isSkipped("AO_60DB71_ESTIMATESTATISTIC"));
@@ -88,58 +102,72 @@ public class DeepScanTest {
     }
 
     @Test
-    public void 프리픽스만_낸다() {
-        // AO 프리픽스로 앱 이름을 알 수 없다 — 설치된 플러그인 키 277개를 세 해시로
-        // 대조했지만 어느 것과도 맞지 않았다(docs/00 35번).
-        assertEquals("AO_60DB71", table().getPrefix());
+    public void 테이블_일치는_표본을_넘어도_건수를_잃지_않는다() {
+        // 전에는 20건에서 잘라 버리고 제목이 "(20)"을 총 건수인 척했다(리뷰 지적).
+        DeepTableMatch match = new DeepTableMatch("AO_X_Y");
+        for (int i = 0; i < 300; i++) {
+            match.add(String.valueOf(i));
+        }
+        assertEquals(300, match.getMatchCount());
+        assertEquals(DeepTableMatch.SAMPLE_ROWS, match.getSampleRowIds().size());
+        assertEquals(280, match.getOverflow());
+    }
+
+    @Test
+    public void 기본키가_없는_행도_건수는_센다() {
+        DeepTableMatch match = new DeepTableMatch("AO_X_Y");
+        match.add(null);
+        match.add(null);
+        assertEquals(2, match.getMatchCount());
+        assertTrue(match.getSampleRowIds().isEmpty());
+    }
+
+    private static DeepScanResult sample() {
+        Map<Long, List<DeepTableMatch>> matches = new LinkedHashMap<Long, List<DeepTableMatch>>();
+        DeepTableMatch a = new DeepTableMatch("AO_60DB71_ESTIMATESTATISTIC");
+        a.add("1");
+        DeepTableMatch b = new DeepTableMatch("AO_60DB71_CARDLAYOUT");
+        for (int i = 0; i < 25; i++) {
+            b.add(null);
+        }
+        matches.put(10001L, new ArrayList<DeepTableMatch>(Arrays.asList(a, b)));
+        return new DeepScanResult(new Date(1000L), new Date(2000L), 204, 12345L, matches,
+                Arrays.asList(new ScanProblem("deep", "AO_X", "timeout")));
     }
 
     @Test
     public void 결과_왕복() throws Exception {
-        Map<Long, List<DeepHit>> hits = new LinkedHashMap<Long, List<DeepHit>>();
-        hits.put(10001L, new ArrayList<DeepHit>(Arrays.asList(
-                new DeepHit("AO_60DB71_ESTIMATESTATISTIC", "1"),
-                new DeepHit("AO_60DB71_CARDLAYOUT", null))));
-        DeepScanResult before = new DeepScanResult(new Date(1000L), new Date(2000L), 204,
-                Arrays.asList("AO_C77861"), 12345L, hits,
-                Arrays.asList(new ScanProblem("deep", "AO_X", "timeout")));
-
         DeepScanResult after = DeepSnapshotCodec.read(
-                DeepSnapshotCodec.write(before, null, "1.3.1"), "1.3.1").result;
+                DeepSnapshotCodec.write(sample(), null, "1.3.2"), "1.3.2").result;
 
         assertEquals(204, after.getTablesScanned());
         assertEquals(12345L, after.getRowsCounted());
-        assertEquals(Arrays.asList("AO_C77861"), after.getSkippedPrefixes());
         assertEquals(1, after.getProblems().size());
-        assertEquals(2, after.getHits(10001L).size());
-        assertEquals("AO_60DB71_ESTIMATESTATISTIC", after.getHits(10001L).get(0).getTable());
-        assertNull(after.getHits(10001L).get(1).getRowId());
-        assertTrue(after.getHits(99999L).isEmpty());
+        assertEquals(2, after.getMatches(10001L).size());
+        assertEquals("AO_60DB71_ESTIMATESTATISTIC", after.getMatches(10001L).get(0).getTable());
+        assertEquals(Arrays.asList("1"), after.getMatches(10001L).get(0).getSampleRowIds());
+        // 표본 없는 25건도 건수는 살아 있다.
+        assertEquals(25, after.getMatches(10001L).get(1).getMatchCount());
+        assertEquals(26, after.getMatchCount(10001L));
+        assertTrue(after.getMatches(99999L).isEmpty());
     }
 
     @Test
     public void 실패도_결과와_함께_저장된다() throws Exception {
-        // 결과만 남기면 재기동 뒤 옛 요약이 흔적 없이 살아난다(docs/00 18·34번과 같은 모양).
-        DeepScanResult result = new DeepScanResult(new Date(1000L), new Date(2000L), 10,
-                Arrays.<String>asList(), 5L, new LinkedHashMap<Long, List<DeepHit>>(),
-                Arrays.<ScanProblem>asList());
         ScanFailure failure = new ScanFailure(new Date(3000L), new Date(4000L), "SQLException: timeout");
-
         DeepSnapshotCodec.Snapshot back = DeepSnapshotCodec.read(
-                DeepSnapshotCodec.write(result, failure, "1.3.1"), "1.3.1");
-
+                DeepSnapshotCodec.write(sample(), failure, "1.3.2"), "1.3.2");
         assertEquals("SQLException: timeout", back.failure.getMessage());
-        assertEquals(10, back.result.getTablesScanned());
-        // 실패가 결과보다 나중이라는 사실이 남아야 "낡았다" 안내를 다시 그릴 수 있다.
+        assertEquals(204, back.result.getTablesScanned());
         assertTrue(back.failure.getFinishedAt().after(back.result.getFinishedAt()));
     }
 
     @Test
     public void 판이_다르면_버린다() throws Exception {
-        String json = DeepSnapshotCodec.write(new DeepScanResult(new Date(1L), new Date(2L), 1,
-                Arrays.<String>asList(), 0L, new LinkedHashMap<Long, List<DeepHit>>(),
-                Arrays.<ScanProblem>asList()), null, "1.2.1");
-        assertNull(DeepSnapshotCodec.read(json, "1.3.1"));
-        assertNull(DeepSnapshotCodec.read(null, "1.3.1"));
+        String json = DeepSnapshotCodec.write(sample(), null, "1.3.1");
+        assertNull(DeepSnapshotCodec.read(json, "1.3.2"));
+        assertNull(DeepSnapshotCodec.read(null, "1.3.2"));
+        // 옛 스키마(1: 행 단위 hits) 는 판이 달라 버려진다.
+        assertNull(DeepSnapshotCodec.read("{\"schema\":1,\"pluginVersion\":\"1.3.2\",\"result\":null}", "1.3.2"));
     }
 }

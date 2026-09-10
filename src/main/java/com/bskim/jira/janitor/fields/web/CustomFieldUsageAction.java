@@ -4,7 +4,8 @@ import com.atlassian.jira.web.action.JiraWebActionSupport;
 import com.atlassian.sal.api.websudo.WebSudoRequired;
 import com.bskim.jira.janitor.fields.model.FieldUsage;
 import com.bskim.jira.janitor.fields.model.Reference;
-import com.bskim.jira.janitor.fields.deep.DeepHit;
+import com.bskim.jira.janitor.fields.dao.DeepScanDao;
+import com.bskim.jira.janitor.fields.deep.DeepTableMatch;
 import com.bskim.jira.janitor.fields.deep.DeepScanResult;
 import com.bskim.jira.janitor.fields.deep.DeepScanService;
 import com.bskim.jira.janitor.fields.model.ReferenceType;
@@ -307,10 +308,9 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
         return result == null ? 0 : result.getFieldCount();
     }
 
-    /** 일부러 건너뛴 프리픽스. 화면에 그대로 낸다 — 조용히 빼면 표가 완전해 보인다. */
+    /** 일부러 건너뛴 프리픽스. 코드 상수다. 화면에 그대로 낸다 — 조용히 빼면 표가 완전해 보인다. */
     public List<String> getDeepSkippedPrefixes() {
-        DeepScanResult result = deepScanService.getLastResult();
-        return result == null ? Collections.<String>emptyList() : result.getSkippedPrefixes();
+        return new ArrayList<String>(new TreeSet<String>(DeepScanDao.SKIPPED_PREFIXES));
     }
 
     public List<ScanProblem> getDeepProblems() {
@@ -318,13 +318,19 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
         return result == null ? Collections.<ScanProblem>emptyList() : result.getProblems();
     }
 
-    /** 지금 보고 있는 필드의 심층 일치. 상세 화면에서만 쓴다. */
-    public List<DeepHit> getDeepHits() {
+    /** 지금 보고 있는 필드의 심층 일치(테이블 단위). 상세 화면에서만 쓴다. */
+    public List<DeepTableMatch> getDeepMatches() {
         DeepScanResult result = deepScanService.getLastResult();
         if (result == null || selectedField == null) {
-            return Collections.<DeepHit>emptyList();
+            return Collections.<DeepTableMatch>emptyList();
         }
-        return result.getHits(selectedField.getNumericId());
+        return result.getMatches(selectedField.getNumericId());
+    }
+
+    /** 지금 보고 있는 필드의 심층 일치 행 수 합계(표본을 넘는 것 포함). */
+    public int getDeepMatchCount() {
+        DeepScanResult result = deepScanService.getLastResult();
+        return result == null || selectedField == null ? 0 : result.getMatchCount(selectedField.getNumericId());
     }
 
     public List<FieldUsage> getFields() {

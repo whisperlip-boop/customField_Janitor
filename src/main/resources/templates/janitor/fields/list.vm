@@ -359,6 +359,14 @@
             : "$action.escapeJs($action.text('janitor.fields.scanRequestFailed'))";
     }
 
+    /** 다른 스캔이 도는 중이라 시작할 수 없을 때. 조용히 새로고침하는 대신 이유를 낸다. */
+    function showBlocked(box, inner, text, button) {
+        box.style.display = "";
+        inner.className = "aui-message aui-message-warning";
+        text.textContent = "$action.escapeJs($action.text('janitor.fields.otherScanRunning'))";
+        if (button) { button.removeAttribute("disabled"); }
+    }
+
     function request(method, path, done) {
         var xhr = new XMLHttpRequest();
         xhr.open(method, restBase + path + langParam, true);
@@ -418,6 +426,13 @@
                 // 202=시작, 409=이미 실행 중(진행률을 준다). 그 밖은 실패다.
                 // code 를 안 보면 403 에서도 버튼이 disabled 로 남아 영구히 죽는다.
                 if (code >= 400 && code !== 409) { showRequestError(code); return; }
+                // 409 인데 막은 것이 "다른" 스캔이면 붙을 진행률이 없다. 폴링하면 첫
+                // 응답의 IDLE/DONE 을 "끝났다"로 읽고 말없이 새로고침한다(리뷰 지적).
+                // 잠금이 tryAcquire 실패와 상태 조회 사이에 풀리면 blockedBy 가 null 일 수
+                // 있다. 그래서 blockedBy 가 아니라 "409 인데 RUNNING 이 아니다"로 판단한다.
+                if (code === 409 && (!status || status.state !== "RUNNING")) {
+                    showBlocked(progressBox, progressInner, progressText, scanButton); return;
+                }
                 showProgress(status);
                 if (polling === null) {
                     polling = window.setInterval(poll, 1500);
@@ -485,8 +500,11 @@
         deepButton.addEventListener("click", function () {
             deepButton.setAttribute("disabled", "disabled");
             request("POST", "/deep/scan", function (code, status) {
-                // 409 는 이미 돌고 있다는 뜻이다 — 일반 스캔이 도는 중일 수도 있다.
                 if (code >= 400 && code !== 409) { showDeepError(code); return; }
+                // 일반 스캔이 도는 중이라 막혔으면 이유를 내고 폴링하지 않는다.
+                if (code === 409 && (!status || status.state !== "RUNNING")) {
+                    showBlocked(deepBox, deepInner, deepText, deepButton); return;
+                }
                 showDeepProgress(status);
                 if (deepPolling === null) {
                     deepPolling = window.setInterval(deepPoll, 1500);

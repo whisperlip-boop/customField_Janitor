@@ -1,5 +1,6 @@
 package com.bskim.jira.janitor.fields.rest.dto;
 
+import com.bskim.jira.janitor.fields.deep.DeepTableMatch;
 import com.bskim.jira.janitor.fields.model.FieldUsage;
 import com.bskim.jira.janitor.fields.model.Reference;
 
@@ -16,8 +17,24 @@ public class FieldDetailDto {
     public boolean globalContext;
     public String verdictKey;
     public String verdict;
+    /**
+     * 심층 스캔의 문자열 일치. 심층 스캔을 아직 안 돌렸으면 null(빈 목록과 구분한다 —
+     * "없다"와 "안 봤다"는 다르다). 참조가 아니므로 references 에 섞지 않는다.
+     * 전에는 HTML 상세 화면에만 있고 REST 에는 없었다(리뷰 지적).
+     */
+    public List<DeepMatchDto> deepMatches;
 
     public FieldDetailDto() {
+    }
+
+    public FieldDetailDto(FieldUsage field, String statusLabel, String verdict, List<DeepTableMatch> deepMatches) {
+        this(field, statusLabel, verdict);
+        if (deepMatches != null) {
+            this.deepMatches = new ArrayList<DeepMatchDto>();
+            for (DeepTableMatch match : deepMatches) {
+                this.deepMatches.add(new DeepMatchDto(match));
+            }
+        }
     }
 
     public FieldDetailDto(FieldUsage field, String statusLabel, String verdict) {

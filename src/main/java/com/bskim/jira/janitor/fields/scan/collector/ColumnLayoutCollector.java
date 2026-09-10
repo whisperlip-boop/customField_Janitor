@@ -1,7 +1,5 @@
 package com.bskim.jira.janitor.fields.scan.collector;
 
-import com.atlassian.jira.component.ComponentAccessor;
-import com.atlassian.jira.user.ApplicationUser;
 import com.bskim.jira.janitor.fields.dao.ColumnLayoutRow;
 import com.bskim.jira.janitor.fields.dao.JanitorDao;
 import com.bskim.jira.janitor.fields.model.FieldUsage;
@@ -47,12 +45,14 @@ public class ColumnLayoutCollector implements ReferenceCollector {
 
     @Override
     public void collect(ScanContext context) {
-        collect(context, new JanitorDao().getColumnLayoutRows());
+        collect(context, new JanitorDao().getColumnLayoutRows(), new Users());
     }
 
-    /** 테스트 진입점. DAO 없이 행을 직접 넣는다. */
-    void collect(ScanContext context, List<ColumnLayoutRow> rows) {
-        // 필드 → 그 필드를 쓰는 개인 설정의 주인들. 마지막에 한 건으로 합친다.
+    /** 테스트 진입점. DAO 없이 행을 직접 넣고, 이름 풀이도 바꿔 끼운다. */
+    void collect(ScanContext context, List<ColumnLayoutRow> rows, Users users) {
+        // 필드 → 그 필드를 쓰는 개인 설정 주인들의 <b>키</b>. 마지막에 한 건으로 합친다.
+        // 표시 이름으로 모으면 이름이 같은 두 사람이 한 명이 된다(리뷰 지적) — 모든
+        // 판단은 ID 기준이다(CLAUDE.md 불변 2). 이름은 요약 문구를 만들 때만 푼다.
         Map<FieldUsage, TreeSet<String>> personalOwners =
                 new LinkedHashMap<FieldUsage, TreeSet<String>>();
 
@@ -69,7 +69,7 @@ public class ColumnLayoutCollector implements ReferenceCollector {
                     owners = new TreeSet<String>();
                     personalOwners.put(field, owners);
                 }
-                owners.add(displayName(row.getUserKey()));
+                owners.add(row.getUserKey());
                 continue;
             }
 
@@ -106,7 +106,7 @@ public class ColumnLayoutCollector implements ReferenceCollector {
                     ReferenceType.COLUMN_LAYOUT,
                     null,
                     "personal",
-                    summarize(entry.getValue()),
+                    summarize(entry.getValue(), users),
                     "janitor.fields.ref.columnLayout.personal",
                     null,
                     Collections.<String>emptyList(),
@@ -114,41 +114,25 @@ public class ColumnLayoutCollector implements ReferenceCollector {
         }
     }
 
-    /** "3 · bskim, janitor-tester, +1" — 몇 명인지 먼저, 그다음 이름 일부. */
-    private static String summarize(TreeSet<String> owners) {
-        List<String> shown = new ArrayList<String>(owners).subList(
-                0, Math.min(NAMES_SHOWN, owners.size()));
+    /** "3 · bskim, janitor-tester, +1" — 몇 명인지 먼저(키 기준), 그다음 이름 일부. */
+    private static String summarize(TreeSet<String> ownerKeys, Users users) {
+        TreeSet<String> names = new TreeSet<String>();
+        for (String key : ownerKeys) {
+            names.add(users.displayName(key));
+        }
+        List<String> shown = new ArrayList<String>(names).subList(0, Math.min(NAMES_SHOWN, names.size()));
         StringBuilder text = new StringBuilder();
-        text.append(owners.size());
+        text.append(ownerKeys.size());
         if (!shown.isEmpty()) {
             text.append(" · ");
             for (int i = 0; i < shown.size(); i++) {
                 text.append(i == 0 ? "" : ", ").append(shown.get(i));
             }
         }
-        if (owners.size() > shown.size()) {
-            text.append(", +").append(owners.size() - shown.size());
+        if (ownerKeys.size() > shown.size()) {
+            text.append(", +").append(ownerKeys.size() - shown.size());
         }
         return text.toString();
-    }
-
-    /**
-     * {@code columnlayout.username} 은 사용자 <b>키</b>다(실측: {@code JIRAUSER10000}).
-     * {@code searchrequest.authorname} 과 같은 함정이라 같은 방식으로 푼다.
-     *
-     * <p>조회 실패는 표시 문제일 뿐이므로 키를 그대로 낸다. 여기서 예외가 새면
-     * 수집기 전체가 "확인 불가"가 되어 참조가 통째로 사라진다.
-     */
-    private static String displayName(String userKey) {
-        try {
-            ApplicationUser user = ComponentAccessor.getUserManager().getUserByKey(userKey);
-            if (user != null && user.getDisplayName() != null) {
-                return user.getDisplayName();
-            }
-        } catch (RuntimeException e) {
-            // 아래에서 키를 그대로 쓴다.
-        }
-        return userKey;
     }
 
     @Override

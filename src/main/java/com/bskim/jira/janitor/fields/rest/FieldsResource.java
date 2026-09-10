@@ -4,7 +4,9 @@ import com.bskim.jira.janitor.fields.model.FieldUsage;
 import com.bskim.jira.janitor.fields.model.ScanProblem;
 import com.bskim.jira.janitor.fields.model.ScanProgress;
 import com.bskim.jira.janitor.fields.model.ScanResult;
+import com.bskim.jira.janitor.fields.deep.DeepScanResult;
 import com.bskim.jira.janitor.fields.deep.DeepScanService;
+import com.bskim.jira.janitor.fields.store.ScanLock;
 import com.bskim.jira.janitor.fields.rest.dto.DeepStatusDto;
 import com.bskim.jira.janitor.fields.rest.dto.FieldDetailDto;
 import com.bskim.jira.janitor.fields.rest.dto.FieldSummaryDto;
@@ -83,8 +85,10 @@ public class FieldsResource {
         if (field == null) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
+        DeepScanResult deep = deepScanService.getLastResult();
         return Response.ok(new FieldDetailDto(field, statusLabel(field),
-                JanitorI18n.text(field.getVerdictI18nKey()))).build();
+                JanitorI18n.text(field.getVerdictI18nKey()),
+                deep == null ? null : deep.getMatches(field.getNumericId()))).build();
     }
 
     /**
@@ -162,10 +166,15 @@ public class FieldsResource {
                 .append("lastValueChange,lastValueChangeAmbiguous,duplicateName,")
                 .append("managed,screens,fieldConfigs,contexts,workflows,filters,")
                 .append("permissionSchemes,notificationSchemes,issueSecuritySchemes,gadgets,columnLayouts,")
+                // 심층 일치는 참조가 아니다. 그래도 정리 계획을 세우는 CSV 에는 있어야 한다
+                // — 전에는 HTML 상세에만 있었다(리뷰 지적). 심층 스캔 전이면 빈 칸.
+                .append("deepMatchTables,")
                 .append("totalReferences,riskyReferences\n");
 
+        DeepScanResult deep = deepScanService.getLastResult();
         for (FieldUsage field : result.getFields()) {
             FieldSummaryDto row = new FieldSummaryDto(field, statusLabel(field));
+            String deepTables = deep == null ? "" : String.valueOf(deep.getMatches(field.getNumericId()).size());
             csv.append(quote(row.status)).append(',')
                     .append(quote(row.name)).append(',')
                     .append(quote(row.fieldId)).append(',')
@@ -189,6 +198,7 @@ public class FieldsResource {
                     .append(row.issueSecuritySchemes).append(',')
                     .append(row.gadgets).append(',')
                     .append(row.columnLayouts).append(',')
+                    .append(deepTables).append(',')
                     .append(row.totalReferences).append(',')
                     .append(row.riskyReferences).append('\n');
         }
@@ -200,7 +210,8 @@ public class FieldsResource {
     }
 
     private DeepStatusDto deepStatus() {
-        return new DeepStatusDto(deepScanService.getProgress(), deepScanService.getLastResult());
+        return new DeepStatusDto(deepScanService.getProgress(), deepScanService.getLastResult(),
+                deepScanService.getLastFailure(), ScanLock.getInstance().holder());
     }
 
     private ScanStatusDto status() {
@@ -212,7 +223,8 @@ public class FieldsResource {
         String stageLabel = progress.getStage() == null
                 ? null
                 : JanitorI18n.text(progress.getStage().getI18nKey(), lang);
-        return new ScanStatusDto(progress, scanService.getLastResult(), stageLabel);
+        return new ScanStatusDto(progress, scanService.getLastResult(), scanService.getLastFailure(),
+                ScanLock.getInstance().holder(), stageLabel);
     }
 
     private String statusLabel(FieldUsage field) {

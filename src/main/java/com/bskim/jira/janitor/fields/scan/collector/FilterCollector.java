@@ -3,7 +3,6 @@ package com.bskim.jira.janitor.fields.scan.collector;
 import com.atlassian.jira.component.ComponentAccessor;
 import com.atlassian.jira.jql.parser.JqlQueryParser;
 import com.atlassian.jira.ofbiz.OfBizDelegator;
-import com.atlassian.jira.user.ApplicationUser;
 import com.atlassian.query.Query;
 import com.atlassian.query.clause.Clause;
 import com.atlassian.query.clause.TerminalClause;
@@ -52,11 +51,13 @@ public class FilterCollector implements ReferenceCollector {
     public void collect(ScanContext context) {
         OfBizDelegator delegator = ComponentAccessor.getOfBizDelegator();
         JqlQueryParser parser = ComponentAccessor.getComponent(JqlQueryParser.class);
+        // authorname 은 사용자 키다(JIRAUSER10000). Users 가 풀고 기억한다.
+        Users users = new Users();
 
         for (GenericValue filter : delegator.findAll("SearchRequest")) {
             Long id = filter.getLong("id");
             String name = filter.getString("name");
-            String author = displayName(filter.getString("author"));
+            String author = users.displayName(filter.getString("author"));
             String jql = filter.getString("request");
             String label = (name == null ? "?" : name) + " (" + id + ")";
 
@@ -156,25 +157,6 @@ public class FilterCollector implements ReferenceCollector {
             }
         }
         return found;
-    }
-
-    /**
-     * {@code searchrequest.authorname}은 Jira 7 이후 사용자 <b>키</b>를 담는다
-     * (실측: {@code JIRAUSER10000}). 그대로 화면에 내면 관리자가 누구인지 알 수 없다.
-     */
-    private static String displayName(String userKey) {
-        if (userKey == null || userKey.trim().isEmpty()) {
-            return null;
-        }
-        try {
-            ApplicationUser user = ComponentAccessor.getUserManager().getUserByKey(userKey);
-            if (user != null && user.getDisplayName() != null) {
-                return user.getDisplayName();
-            }
-        } catch (RuntimeException e) {
-            // 사용자 조회 실패는 표시 문제일 뿐이다. 키를 그대로 낸다.
-        }
-        return userKey;
     }
 
     private static String excerpt(String jql) {

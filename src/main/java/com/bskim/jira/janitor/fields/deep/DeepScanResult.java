@@ -20,26 +20,27 @@ import java.util.Map;
  *   <li>심층 스캔은 일반 스캔과 다른 때에 따로 돌아간다. 이미 끝난 불변
  *       {@code ScanResult} 에 나중에 붙일 수도 없다.</li>
  * </ol>
+ *
+ * <p>건너뛴 프리픽스는 여기 담지 않는다 — 코드의 상수({@code DeepScanDao.SKIPPED_PREFIXES})
+ * 이고, 판이 다른 스냅샷은 버리므로 결과에 실어 나를 이유가 없다.
  */
 public final class DeepScanResult {
 
     private final Date startedAt;
     private final Date finishedAt;
     private final int tablesScanned;
-    private final List<String> skippedPrefixes;
     private final long rowsCounted;
-    private final Map<Long, List<DeepHit>> hitsByField;
+    private final Map<Long, List<DeepTableMatch>> matchesByField;
     private final List<ScanProblem> problems;
 
-    public DeepScanResult(Date startedAt, Date finishedAt, int tablesScanned,
-                          List<String> skippedPrefixes, long rowsCounted,
-                          Map<Long, List<DeepHit>> hitsByField, List<ScanProblem> problems) {
+    public DeepScanResult(Date startedAt, Date finishedAt, int tablesScanned, long rowsCounted,
+                          Map<Long, List<DeepTableMatch>> matchesByField, List<ScanProblem> problems) {
         this.startedAt = new Date(startedAt.getTime());
         this.finishedAt = new Date(finishedAt.getTime());
         this.tablesScanned = tablesScanned;
-        this.skippedPrefixes = Collections.unmodifiableList(new ArrayList<String>(skippedPrefixes));
         this.rowsCounted = rowsCounted;
-        this.hitsByField = Collections.unmodifiableMap(new LinkedHashMap<Long, List<DeepHit>>(hitsByField));
+        this.matchesByField = Collections.unmodifiableMap(
+                new LinkedHashMap<Long, List<DeepTableMatch>>(matchesByField));
         this.problems = Collections.unmodifiableList(new ArrayList<ScanProblem>(problems));
     }
 
@@ -55,11 +56,7 @@ public final class DeepScanResult {
         return tablesScanned;
     }
 
-    /** 일부러 건너뛴 프리픽스(감사 로그). 화면에 그대로 보여준다 — 숨기면 안 된다. */
-    public List<String> getSkippedPrefixes() {
-        return skippedPrefixes;
-    }
-
+    /** 훑은 테이블의 행 수 합계. 세지 못한 테이블은 빠져 있고 그 사실은 problems 에 있다. */
     public long getRowsCounted() {
         return rowsCounted;
     }
@@ -68,16 +65,25 @@ public final class DeepScanResult {
         return problems;
     }
 
-    public Map<Long, List<DeepHit>> getHitsByField() {
-        return hitsByField;
+    public Map<Long, List<DeepTableMatch>> getMatchesByField() {
+        return matchesByField;
     }
 
-    public List<DeepHit> getHits(long fieldNumericId) {
-        List<DeepHit> hits = hitsByField.get(fieldNumericId);
-        return hits == null ? Collections.<DeepHit>emptyList() : hits;
+    public List<DeepTableMatch> getMatches(long fieldNumericId) {
+        List<DeepTableMatch> matches = matchesByField.get(fieldNumericId);
+        return matches == null ? Collections.<DeepTableMatch>emptyList() : matches;
+    }
+
+    /** 한 필드의 일치 행 수 합계(표본을 넘는 것 포함). */
+    public int getMatchCount(long fieldNumericId) {
+        int total = 0;
+        for (DeepTableMatch match : getMatches(fieldNumericId)) {
+            total += match.getMatchCount();
+        }
+        return total;
     }
 
     public int getFieldCount() {
-        return hitsByField.size();
+        return matchesByField.size();
     }
 }
