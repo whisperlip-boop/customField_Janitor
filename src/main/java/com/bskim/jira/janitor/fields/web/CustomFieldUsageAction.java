@@ -268,6 +268,25 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
         return deepScanService.getLastResult() != null;
     }
 
+    /** 마지막 심층 스캔이 실패했으면 그 메시지. 재기동을 넘어 남는다(스냅샷에 함께 저장). */
+    public String getDeepFailure() {
+        ScanFailure failure = deepScanService.getLastFailure();
+        return failure == null ? null : failure.getMessage();
+    }
+
+    public String getDeepFailureAt() {
+        ScanFailure failure = deepScanService.getLastFailure();
+        return failure == null ? null : formatLocal(failure.getFinishedAt());
+    }
+
+    /** 지금 보이는 심층 결과가 그 실패보다 오래된 것인가. 참이면 낡았다고 말해야 한다. */
+    public boolean isDeepResultStale() {
+        ScanFailure failure = deepScanService.getLastFailure();
+        DeepScanResult result = deepScanService.getLastResult();
+        return failure != null && result != null
+                && failure.getFinishedAt().after(result.getFinishedAt());
+    }
+
     public String getDeepScanAt() {
         DeepScanResult result = deepScanService.getLastResult();
         return result == null ? null : formatLocal(result.getFinishedAt());

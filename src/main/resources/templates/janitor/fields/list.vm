@@ -277,6 +277,19 @@
         </div>
     </div>
 
+    #* 심층 스캔의 실패도 새로고침과 재기동을 넘어 남는다. 진행률만 쓰면 실패한
+       다음에 옛 결과만 남아 방금 것으로 읽힌다(일반 스캔에서 두 번 고친 모양). *#
+    #if ($action.deepFailure)
+        <div class="aui-message aui-message-error">
+            <p class="title"><strong>$action.text("janitor.fields.deep.failed.title")</strong></p>
+            <p>$action.escape($action.deepFailure)</p>
+            <p>$action.text("janitor.fields.scanFailed.at") $action.deepFailureAt</p>
+            #if ($action.deepResultStale)
+                <p><strong>$action.text("janitor.fields.deep.failed.stale")</strong></p>
+            #end
+        </div>
+    #end
+
     #if ($action.deepResultAvailable)
         <p>$action.text("janitor.fields.deep.summary", $action.deepTableCount, $action.deepRowCount, $action.deepFieldCount)</p>
 

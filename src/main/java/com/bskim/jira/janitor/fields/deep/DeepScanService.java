@@ -7,6 +7,7 @@ import com.bskim.jira.janitor.fields.dao.JanitorDao;
 import com.bskim.jira.janitor.fields.model.FieldUsage;
 import com.bskim.jira.janitor.fields.model.ScanProblem;
 import com.bskim.jira.janitor.fields.scan.ScanContext;
+import com.bskim.jira.janitor.fields.scan.ScanFailure;
 import com.bskim.jira.janitor.fields.scan.ScanService;
 import com.bskim.jira.janitor.fields.store.SnapshotStore;
 import org.apache.log4j.Logger;
@@ -46,6 +47,12 @@ public final class DeepScanService {
     private final AtomicReference<DeepScanProgress> progress =
             new AtomicReference<DeepScanProgress>(DeepScanProgress.idle());
     private final AtomicReference<DeepScanResult> lastResult = new AtomicReference<DeepScanResult>();
+    /**
+     * 마지막 실패. 진행률은 화면을 새로 그리면 사라지고, 재기동하면 더더욱 사라진다.
+     * 그러면 관리자는 <b>실패한 스캔 다음에 살아난 옛 결과</b>를 최신으로 믿는다 —
+     * 일반 스캔에서 두 번 고친 것과 같은 모양이다(docs/00 18·34번).
+     */
+    private final AtomicReference<ScanFailure> lastFailure = new AtomicReference<ScanFailure>();
 
     private boolean snapshotRead = false;
 
@@ -67,6 +74,12 @@ public final class DeepScanService {
     public DeepScanResult getLastResult() {
         restoreSnapshot();
         return lastResult.get();
+    }
+
+    /** 마지막 심층 스캔이 실패했으면 그 기록. 성공하면 지워진다. */
+    public ScanFailure getLastFailure() {
+        restoreSnapshot();
+        return lastFailure.get();
     }
 
     /**
@@ -92,6 +105,7 @@ public final class DeepScanService {
                 try {
                     DeepScanResult result = scan(startedAt);
                     lastResult.set(result);
+                    lastFailure.set(null);
                     saveSnapshot();
                     progress.set(new DeepScanProgress(DeepScanProgress.State.DONE,
                             result.getTablesScanned(), result.getTablesScanned(), null, startedAt, null));
@@ -100,6 +114,9 @@ public final class DeepScanService {
                     log.error("심층 스캔이 실패했다", e);
                     String message = e.getClass().getSimpleName()
                             + (e.getMessage() == null ? "" : ": " + e.getMessage());
+                    lastFailure.set(new ScanFailure(startedAt, new Date(), message));
+                    // 실패도 저장한다. 결과만 남기면 재기동 뒤 옛 결과가 흔적 없이 살아난다.
+                    saveSnapshot();
                     progress.set(new DeepScanProgress(DeepScanProgress.State.FAILED, 0, 0, null,
                             startedAt, message));
                 } finally {
@@ -190,11 +207,17 @@ public final class DeepScanService {
         snapshotRead = true;
         try {
             String raw = new SnapshotStore(SnapshotStore.DEEP_KEY).load();
-            DeepScanResult restored = DeepSnapshotCodec.read(raw, pluginVersion());
+            DeepSnapshotCodec.Snapshot restored = DeepSnapshotCodec.read(raw, pluginVersion());
             if (restored != null) {
-                lastResult.set(restored);
-                log.warn("심층 스캔 스냅샷을 복원했다: 필드 " + restored.getFieldCount()
-                        + "개, 스캔 시각 " + restored.getFinishedAt());
+                if (restored.result != null) {
+                    lastResult.set(restored.result);
+                }
+                if (restored.failure != null) {
+                    lastFailure.set(restored.failure);
+                }
+                log.warn("심층 스캔 스냅샷을 복원했다: 필드 "
+                        + (restored.result == null ? 0 : restored.result.getFieldCount())
+                        + "개" + (restored.failure == null ? "" : " (마지막 스캔은 실패였다)"));
             } else if (raw != null && !raw.trim().isEmpty()) {
                 log.warn("저장된 심층 스캔 스냅샷을 버렸다(판 불일치) — 다시 돌려야 한다");
             }
@@ -206,7 +229,7 @@ public final class DeepScanService {
     private void saveSnapshot() {
         try {
             new SnapshotStore(SnapshotStore.DEEP_KEY)
-                    .save(DeepSnapshotCodec.write(lastResult.get(), pluginVersion()));
+                    .save(DeepSnapshotCodec.write(lastResult.get(), lastFailure.get(), pluginVersion()));
         } catch (Throwable t) {
             log.warn("심층 스캔 스냅샷을 저장하지 못했다", t);
         }

@@ -4,6 +4,7 @@ import com.atlassian.jira.util.json.JSONArray;
 import com.atlassian.jira.util.json.JSONException;
 import com.atlassian.jira.util.json.JSONObject;
 import com.bskim.jira.janitor.fields.model.ScanProblem;
+import com.bskim.jira.janitor.fields.scan.ScanFailure;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -26,15 +27,29 @@ public final class DeepSnapshotCodec {
     private DeepSnapshotCodec() {
     }
 
-    public static String write(DeepScanResult result, String pluginVersion) throws JSONException {
+    /** 스냅샷 한 장. 일반 스캔과 같은 모양이다 — 결과와 실패를 <b>함께</b> 담는다. */
+    public static final class Snapshot {
+
+        public final DeepScanResult result;
+        public final ScanFailure failure;
+
+        public Snapshot(DeepScanResult result, ScanFailure failure) {
+            this.result = result;
+            this.failure = failure;
+        }
+    }
+
+    public static String write(DeepScanResult result, ScanFailure failure, String pluginVersion)
+            throws JSONException {
         JSONObject root = new JSONObject();
         root.put("schema", SCHEMA);
         root.put("pluginVersion", pluginVersion == null ? "" : pluginVersion);
         root.put("result", result == null ? JSONObject.NULL : writeResult(result));
+        root.put("failure", failure == null ? JSONObject.NULL : writeFailure(failure));
         return root.toString();
     }
 
-    public static DeepScanResult read(String json, String pluginVersion) throws JSONException {
+    public static Snapshot read(String json, String pluginVersion) throws JSONException {
         if (json == null || json.trim().isEmpty()) {
             return null;
         }
@@ -45,7 +60,22 @@ public final class DeepSnapshotCodec {
         if (!root.optString("pluginVersion", "").equals(pluginVersion == null ? "" : pluginVersion)) {
             return null;
         }
-        return root.isNull("result") ? null : readResult(root.getJSONObject("result"));
+        return new Snapshot(
+                root.isNull("result") ? null : readResult(root.getJSONObject("result")),
+                root.isNull("failure") ? null : readFailure(root.getJSONObject("failure")));
+    }
+
+    private static JSONObject writeFailure(ScanFailure failure) throws JSONException {
+        JSONObject json = new JSONObject();
+        json.put("startedAt", failure.getStartedAt().getTime());
+        json.put("finishedAt", failure.getFinishedAt().getTime());
+        json.put("message", failure.getMessage() == null ? JSONObject.NULL : failure.getMessage());
+        return json;
+    }
+
+    private static ScanFailure readFailure(JSONObject json) throws JSONException {
+        return new ScanFailure(new Date(json.getLong("startedAt")), new Date(json.getLong("finishedAt")),
+                json.isNull("message") ? null : json.getString("message"));
     }
 
     private static JSONObject writeResult(DeepScanResult result) throws JSONException {

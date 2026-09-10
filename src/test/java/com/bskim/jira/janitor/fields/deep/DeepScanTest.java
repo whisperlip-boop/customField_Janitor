@@ -2,6 +2,7 @@ package com.bskim.jira.janitor.fields.deep;
 
 import com.bskim.jira.janitor.fields.dao.DeepScanDao;
 import com.bskim.jira.janitor.fields.model.ScanProblem;
+import com.bskim.jira.janitor.fields.scan.ScanFailure;
 import org.junit.Test;
 
 import java.sql.Types;
@@ -104,7 +105,7 @@ public class DeepScanTest {
                 Arrays.asList(new ScanProblem("deep", "AO_X", "timeout")));
 
         DeepScanResult after = DeepSnapshotCodec.read(
-                DeepSnapshotCodec.write(before, "1.3.0"), "1.3.0");
+                DeepSnapshotCodec.write(before, null, "1.3.1"), "1.3.1").result;
 
         assertEquals(204, after.getTablesScanned());
         assertEquals(12345L, after.getRowsCounted());
@@ -117,11 +118,28 @@ public class DeepScanTest {
     }
 
     @Test
+    public void 실패도_결과와_함께_저장된다() throws Exception {
+        // 결과만 남기면 재기동 뒤 옛 요약이 흔적 없이 살아난다(docs/00 18·34번과 같은 모양).
+        DeepScanResult result = new DeepScanResult(new Date(1000L), new Date(2000L), 10,
+                Arrays.<String>asList(), 5L, new LinkedHashMap<Long, List<DeepHit>>(),
+                Arrays.<ScanProblem>asList());
+        ScanFailure failure = new ScanFailure(new Date(3000L), new Date(4000L), "SQLException: timeout");
+
+        DeepSnapshotCodec.Snapshot back = DeepSnapshotCodec.read(
+                DeepSnapshotCodec.write(result, failure, "1.3.1"), "1.3.1");
+
+        assertEquals("SQLException: timeout", back.failure.getMessage());
+        assertEquals(10, back.result.getTablesScanned());
+        // 실패가 결과보다 나중이라는 사실이 남아야 "낡았다" 안내를 다시 그릴 수 있다.
+        assertTrue(back.failure.getFinishedAt().after(back.result.getFinishedAt()));
+    }
+
+    @Test
     public void 판이_다르면_버린다() throws Exception {
         String json = DeepSnapshotCodec.write(new DeepScanResult(new Date(1L), new Date(2L), 1,
                 Arrays.<String>asList(), 0L, new LinkedHashMap<Long, List<DeepHit>>(),
-                Arrays.<ScanProblem>asList()), "1.2.1");
-        assertNull(DeepSnapshotCodec.read(json, "1.3.0"));
-        assertNull(DeepSnapshotCodec.read(null, "1.3.0"));
+                Arrays.<ScanProblem>asList()), null, "1.2.1");
+        assertNull(DeepSnapshotCodec.read(json, "1.3.1"));
+        assertNull(DeepSnapshotCodec.read(null, "1.3.1"));
     }
 }
