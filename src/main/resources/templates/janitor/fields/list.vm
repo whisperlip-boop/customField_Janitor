@@ -10,6 +10,10 @@
     <meta name="admin.active.section" content="admin_issues_menu/element_options_section/fields_section">
     <meta name="admin.active.tab" content="cf-usage-link">
     <style type="text/css">
+        /* 심층 스캔은 성격이 다른 기능이다. 선 하나로 떼어 놓아 "표의 일부"로
+           읽히지 않게 한다 — 여기 결과는 라벨에 반영되지 않는다. */
+        .janitor-deep { margin-top: 32px; padding-top: 16px; border-top: 2px solid #dfe1e6; }
+
         .janitor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 10px 0 16px; }
         .janitor-toolbar .janitor-spacer { flex: 1 1 auto; }
         .janitor-meta { color: #707070; font-size: 12px; }
@@ -249,6 +253,64 @@
 
 #end
 
+#* 심층 스캔. 일반 스캔과 따로 두는 이유는 성격이 다르기 때문이다 — 여기서 나오는
+   것은 참조가 아니라 문자열 일치이고, 비용도 훨씬 크다. 그래서 버튼도 설명도
+   결과도 별도 구역에 둔다. *#
+<div class="janitor-deep">
+    <h3>$action.text("janitor.fields.deep.title")</h3>
+    <p>$action.text("janitor.fields.deep.intro")</p>
+    <p class="janitor-meta">$action.text("janitor.fields.deep.cost")</p>
+
+    <div class="janitor-toolbar">
+        <button id="janitor-deep-scan" class="aui-button">$action.text("janitor.fields.deep.action")</button>
+        <span class="janitor-spacer"></span>
+        #if ($action.deepResultAvailable)
+            <span class="janitor-meta">
+                $action.text("janitor.fields.deep.lastScan"): $action.deepScanAt
+            </span>
+        #end
+    </div>
+
+    <div id="janitor-deep-progress" class="janitor-progress" style="display:none;">
+        <div id="janitor-deep-progress-box" class="aui-message aui-message-info">
+            <p id="janitor-deep-progress-text"></p>
+        </div>
+    </div>
+
+    #if ($action.deepResultAvailable)
+        <p>$action.text("janitor.fields.deep.summary", $action.deepTableCount, $action.deepRowCount, $action.deepFieldCount)</p>
+
+        #* 건너뛴 테이블을 화면에 낸다. "해석하지 않는다"는 원칙이 굽는 유일한
+           자리라 숨기면 표가 완전한 것으로 읽힌다. *#
+        #if ($action.deepSkippedPrefixes.size() > 0)
+            <p class="janitor-meta">
+                $action.text("janitor.fields.deep.skipped")
+                #foreach ($prefix in $action.deepSkippedPrefixes)$!{prefix}_* #end
+            </p>
+        #end
+
+        #if ($action.deepProblems.size() > 0)
+            <p class="janitor-meta">$action.text("janitor.fields.deep.problems", $action.deepProblems.size())</p>
+            <table class="aui">
+                <thead>
+                <tr>
+                    <th>$action.text("janitor.fields.problems.target")</th>
+                    <th>$action.text("janitor.fields.problems.message")</th>
+                </tr>
+                </thead>
+                <tbody>
+                #foreach ($problem in $action.deepProblems)
+                    <tr>
+                        <td>$action.escape($problem.target)</td>
+                        <td>$action.escape($problem.message)</td>
+                    </tr>
+                #end
+                </tbody>
+            </table>
+        #end
+    #end
+</div>
+
 <script type="text/javascript">
 (function () {
     var restBase = "${action.restBase}";
@@ -350,6 +412,81 @@
             });
         });
     }
+
+    // --- 심층 스캔 --------------------------------------------------------------
+    // 일반 스캔과 같은 규칙이다: 401/403 이면 멈추고 버튼을 되살리고 이유를 낸다.
+    var deepButton = document.getElementById("janitor-deep-scan");
+    var deepBox = document.getElementById("janitor-deep-progress");
+    var deepInner = document.getElementById("janitor-deep-progress-box");
+    var deepText = document.getElementById("janitor-deep-progress-text");
+    var deepPolling = null;
+
+    function stopDeepPolling() {
+        if (deepPolling !== null) {
+            window.clearInterval(deepPolling);
+            deepPolling = null;
+        }
+        if (deepButton) { deepButton.removeAttribute("disabled"); }
+    }
+
+    function showDeepError(code) {
+        stopDeepPolling();
+        deepBox.style.display = "";
+        deepInner.className = "aui-message aui-message-error";
+        deepText.textContent = (code === 401 || code === 403)
+            ? "$action.escapeJs($action.text('janitor.fields.sessionExpired'))"
+            : "$action.escapeJs($action.text('janitor.fields.scanRequestFailed'))";
+    }
+
+    function showDeepProgress(status) {
+        if (!status) { return; }
+        deepBox.style.display = "";
+        if (status.state === "RUNNING") {
+            deepInner.className = "aui-message aui-message-info";
+            deepText.textContent = (status.tableName || "") +
+                " (" + status.tableIndex + "/" + status.tableTotal + ", " + status.percent + "%)";
+        } else if (status.state === "FAILED") {
+            deepInner.className = "aui-message aui-message-error";
+            deepText.textContent = status.error || "failed";
+        } else {
+            deepInner.className = "aui-message aui-message-info";
+            deepText.textContent = "";
+            deepBox.style.display = "none";
+        }
+    }
+
+    function deepPoll() {
+        request("GET", "/deep/status", function (code, status) {
+            if (code === 401 || code === 403) { showDeepError(code); return; }
+            if (code !== 200 || !status) { return; }
+            showDeepProgress(status);
+            if (status.state !== "RUNNING") {
+                stopDeepPolling();
+                if (status.state === "FAILED") { return; }
+                window.location.reload();
+            }
+        });
+    }
+
+    if (deepButton) {
+        deepButton.addEventListener("click", function () {
+            deepButton.setAttribute("disabled", "disabled");
+            request("POST", "/deep/scan", function (code, status) {
+                // 409 는 이미 돌고 있다는 뜻이다 — 일반 스캔이 도는 중일 수도 있다.
+                if (code >= 400 && code !== 409) { showDeepError(code); return; }
+                showDeepProgress(status);
+                if (deepPolling === null) {
+                    deepPolling = window.setInterval(deepPoll, 1500);
+                }
+            });
+        });
+    }
+
+    #if ($action.deepScanning)
+        deepButton.setAttribute("disabled", "disabled");
+        deepPolling = window.setInterval(deepPoll, 1500);
+        deepPoll();
+    #end
 
     // 스캔이 이미 돌고 있으면(다른 창에서 눌렀거나 새로고침) 바로 폴링을 붙인다.
     #if ($action.scanning)

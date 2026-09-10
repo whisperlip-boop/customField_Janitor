@@ -105,7 +105,7 @@ public final class ScanService {
             return;
         }
         try {
-            String raw = SnapshotStore.load();
+            String raw = new SnapshotStore(SnapshotStore.SCAN_KEY).load();
             SnapshotCodec.Snapshot snapshot = SnapshotCodec.read(raw, version);
             if (snapshot == null) {
                 if (raw != null && !raw.trim().isEmpty()) {
@@ -135,7 +135,8 @@ public final class ScanService {
     /** 결과와 실패를 함께 저장한다. 결과만 남기면 재기동 뒤 실패 배너가 사라진다. */
     private void saveSnapshot() {
         try {
-            SnapshotStore.save(SnapshotCodec.write(lastResult.get(), lastFailure.get(), pluginVersion()));
+            new SnapshotStore(SnapshotStore.SCAN_KEY)
+                    .save(SnapshotCodec.write(lastResult.get(), lastFailure.get(), pluginVersion()));
         } catch (Throwable t) {
             log.warn("스캔 스냅샷을 저장하지 못했다 — 다음 재기동에서 결과가 사라진다", t);
         }
@@ -181,6 +182,10 @@ public final class ScanService {
         // 저장해 이전의 성공 결과를 지워 버린다 — "아래 표는 이전 스캔의 결과입니다"
         // 배너가 가리킬 표가 없어진다. 실패 경로에서만 드러나는 종류의 유실이다.
         restoreSnapshot();
+        // 심층 스캔과 겹치지 않는다. 둘 다 DB를 두드리므로 같이 돌면 서로를 느리게 한다.
+        if (com.bskim.jira.janitor.fields.deep.DeepScanService.getInstance().isRunning()) {
+            return false;
+        }
         if (!running.compareAndSet(false, true)) {
             return false;
         }

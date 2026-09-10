@@ -350,6 +350,8 @@
     <dd>$action.text("janitor.help.scan.problems.body")</dd>
     <dt>$action.text("janitor.help.scan.failed.title")</dt>
     <dd>$action.text("janitor.help.scan.failed.body")</dd>
+    <dt>$action.text("janitor.help.scan.deep.title")</dt>
+    <dd>$action.text("janitor.help.scan.deep.body")</dd>
 </dl>
 
 ## 7. 한계

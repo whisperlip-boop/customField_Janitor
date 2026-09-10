@@ -61,6 +61,20 @@ public final class LocaleText {
         return i18n() == null ? key : i18n().getText(key, arg);
     }
 
+    /**
+     * 인자 셋짜리 문구.
+     *
+     * <p>오버로드가 없는 인자 수로 부르면 Velocity 는 <b>에러를 내지 않고</b>
+     * {@code $action.text("...", $a, $b, $c)} 를 문자열 그대로 렌더한다(docs/00 24번).
+     * 그래서 화면이 쓰는 인자 수만큼 여기에 오버로드가 있어야 한다.
+     *
+     * <p>{@code I18nHelper} 에는 2-arg 오버로드가 없다(1, 3, 4 … 순이다). 실측한 사실이라
+     * 인자 둘짜리 문구가 필요하면 {@code null} 을 하나 채워 3-arg 로 부를 것.
+     */
+    public String text(String key, Object first, Object second, Object third) {
+        return i18n() == null ? key : i18n().getText(key, first, second, third);
+    }
+
     private I18nHelper i18n() {
         if (i18n == null) {
             i18n = resolve(isKorean() ? Locale.KOREAN : Locale.ENGLISH);

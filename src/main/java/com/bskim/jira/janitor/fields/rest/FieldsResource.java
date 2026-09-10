@@ -4,6 +4,8 @@ import com.bskim.jira.janitor.fields.model.FieldUsage;
 import com.bskim.jira.janitor.fields.model.ScanProblem;
 import com.bskim.jira.janitor.fields.model.ScanProgress;
 import com.bskim.jira.janitor.fields.model.ScanResult;
+import com.bskim.jira.janitor.fields.deep.DeepScanService;
+import com.bskim.jira.janitor.fields.rest.dto.DeepStatusDto;
 import com.bskim.jira.janitor.fields.rest.dto.FieldDetailDto;
 import com.bskim.jira.janitor.fields.rest.dto.FieldSummaryDto;
 import com.bskim.jira.janitor.fields.rest.dto.FieldsResponseDto;
@@ -36,6 +38,7 @@ import java.util.TimeZone;
 public class FieldsResource {
 
     private final ScanService scanService = ScanService.getInstance();
+    private final DeepScanService deepScanService = DeepScanService.getInstance();
 
     /** 캐시된 전체 결과. 아직 스캔한 적이 없으면 필드 목록이 빈 채로 스캔 상태만 온다. */
     @GET
@@ -82,6 +85,31 @@ public class FieldsResource {
         }
         return Response.ok(new FieldDetailDto(field, statusLabel(field),
                 JanitorI18n.text(field.getVerdictI18nKey()))).build();
+    }
+
+    /**
+     * 심층 스캔 시작. 이미 돌고 있거나 <b>일반 스캔이 돌고 있으면</b> 409다 —
+     * 둘 다 DB를 두드리므로 겹치면 서로를 느리게 한다.
+     */
+    @POST
+    @Path("/deep/scan")
+    public Response deepScan() {
+        if (!AdminGuard.isAdmin()) {
+            return forbidden();
+        }
+        boolean started = deepScanService.start();
+        return Response.status(started ? Response.Status.ACCEPTED : Response.Status.CONFLICT)
+                .entity(deepStatus())
+                .build();
+    }
+
+    @GET
+    @Path("/deep/status")
+    public Response deepStatus_() {
+        if (!AdminGuard.isAdmin()) {
+            return forbidden();
+        }
+        return Response.ok(deepStatus()).build();
     }
 
     /**
@@ -169,6 +197,10 @@ public class FieldsResource {
         return Response.ok(csv.toString())
                 .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")
                 .build();
+    }
+
+    private DeepStatusDto deepStatus() {
+        return new DeepStatusDto(deepScanService.getProgress(), deepScanService.getLastResult());
     }
 
     private ScanStatusDto status() {

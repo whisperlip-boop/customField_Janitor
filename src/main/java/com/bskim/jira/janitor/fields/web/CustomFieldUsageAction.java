@@ -4,6 +4,9 @@ import com.atlassian.jira.web.action.JiraWebActionSupport;
 import com.atlassian.sal.api.websudo.WebSudoRequired;
 import com.bskim.jira.janitor.fields.model.FieldUsage;
 import com.bskim.jira.janitor.fields.model.Reference;
+import com.bskim.jira.janitor.fields.deep.DeepHit;
+import com.bskim.jira.janitor.fields.deep.DeepScanResult;
+import com.bskim.jira.janitor.fields.deep.DeepScanService;
 import com.bskim.jira.janitor.fields.model.ReferenceType;
 import com.bskim.jira.janitor.fields.model.ScanProblem;
 import com.bskim.jira.janitor.fields.model.ScanProgress;
@@ -44,6 +47,7 @@ import java.util.TreeSet;
 public class CustomFieldUsageAction extends JiraWebActionSupport {
 
     private final ScanService scanService = ScanService.getInstance();
+    private final DeepScanService deepScanService = DeepScanService.getInstance();
 
     private String fieldId;
     private FieldUsage selectedField;
@@ -127,6 +131,11 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
 
     public String text(String key) {
         return locale().text(key);
+    }
+
+    /** 인자 셋짜리 문구. 오버로드가 없으면 Velocity 가 조용히 문자열로 찍는다(docs/00 24번). */
+    public String text(String key, Object first, Object second, Object third) {
+        return locale().text(key, first, second, third);
     }
 
     public String getLang() {
@@ -234,6 +243,69 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
         ScanResult result = scanService.getLastResult();
         return failure != null && result != null
                 && failure.getFinishedAt().after(result.getFinishedAt());
+    }
+
+    // ── 심층 스캔 ────────────────────────────────────────────────────────────
+    //
+    // 여기 나오는 것은 참조가 아니라 문자열 일치다. 화면 문구가 그 사실을 계속
+    // 말해야 한다 — "앱 테이블에서 발견"이 "쓰이고 있다"로 읽히면 이 기능은
+    // 하지 않기로 한 해석을 한 셈이 된다.
+
+    public boolean isDeepScanning() {
+        return deepScanService.isRunning();
+    }
+
+    /**
+     * 심층 스캔 결과가 있는가.
+     *
+     * <p>이름이 {@code isDeepResultAvailable} 인 이유: Velocity 는 {@code $action.x} 를
+     * {@code getX()} / {@code isX()} 로만 찾는다. {@code hasDeepResult()} 로 두면
+     * <b>조건식이 조용히 false 가 되어</b> 구역 전체가 사라진다 — 에러도 로그도 없다.
+     * v1.0.0 부터 목록 화면의 에러 안내가 안 나오던 것과 같은 함정이다(docs/00 23번).
+     * 실제로 여기서도 한 번 밟았다.
+     */
+    public boolean isDeepResultAvailable() {
+        return deepScanService.getLastResult() != null;
+    }
+
+    public String getDeepScanAt() {
+        DeepScanResult result = deepScanService.getLastResult();
+        return result == null ? null : formatLocal(result.getFinishedAt());
+    }
+
+    public int getDeepTableCount() {
+        DeepScanResult result = deepScanService.getLastResult();
+        return result == null ? 0 : result.getTablesScanned();
+    }
+
+    public long getDeepRowCount() {
+        DeepScanResult result = deepScanService.getLastResult();
+        return result == null ? 0L : result.getRowsCounted();
+    }
+
+    public int getDeepFieldCount() {
+        DeepScanResult result = deepScanService.getLastResult();
+        return result == null ? 0 : result.getFieldCount();
+    }
+
+    /** 일부러 건너뛴 프리픽스. 화면에 그대로 낸다 — 조용히 빼면 표가 완전해 보인다. */
+    public List<String> getDeepSkippedPrefixes() {
+        DeepScanResult result = deepScanService.getLastResult();
+        return result == null ? Collections.<String>emptyList() : result.getSkippedPrefixes();
+    }
+
+    public List<ScanProblem> getDeepProblems() {
+        DeepScanResult result = deepScanService.getLastResult();
+        return result == null ? Collections.<ScanProblem>emptyList() : result.getProblems();
+    }
+
+    /** 지금 보고 있는 필드의 심층 일치. 상세 화면에서만 쓴다. */
+    public List<DeepHit> getDeepHits() {
+        DeepScanResult result = deepScanService.getLastResult();
+        if (result == null || selectedField == null) {
+            return Collections.<DeepHit>emptyList();
+        }
+        return result.getHits(selectedField.getNumericId());
     }
 
     public List<FieldUsage> getFields() {

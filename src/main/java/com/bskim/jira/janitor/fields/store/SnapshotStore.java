@@ -23,10 +23,16 @@ public final class SnapshotStore {
 
     private static final Logger log = Logger.getLogger(SnapshotStore.class);
 
-    /** 저장 키. 플러그인 키를 접두사로 둬서 남의 설정과 섞이지 않게 한다. */
-    public static final String KEY = "com.bskim.jira.janitor.fields.snapshot";
+    /** 일반 스캔 결과. 플러그인 키를 접두사로 둬서 남의 설정과 섞이지 않게 한다. */
+    public static final String SCAN_KEY = "com.bskim.jira.janitor.fields.snapshot";
 
-    private SnapshotStore() {
+    /** 심층 스캔 결과. 따로 둔다 — 두 스캔은 서로 다른 때에 끝나고 수명도 다르다. */
+    public static final String DEEP_KEY = "com.bskim.jira.janitor.fields.deepSnapshot";
+
+    private final String key;
+
+    public SnapshotStore(String key) {
+        this.key = key;
     }
 
     /**
@@ -56,11 +62,11 @@ public final class SnapshotStore {
     }
 
     /** 저장. 실패는 로그만 남기고 삼킨다 — 스냅샷 때문에 스캔이 죽으면 안 된다. */
-    public static void save(String json) {
+    public void save(String json) {
         try {
             PluginSettings settings = settings();
             if (settings != null) {
-                settings.put(KEY, json);
+                settings.put(key, json);
             }
         } catch (Throwable t) {
             log.warn("스냅샷 저장 실패", t);
@@ -68,13 +74,13 @@ public final class SnapshotStore {
     }
 
     /** 읽기. 없거나 실패면 null. */
-    public static String load() {
+    public String load() {
         try {
             PluginSettings settings = settings();
             if (settings == null) {
                 return null;
             }
-            Object value = settings.get(KEY);
+            Object value = settings.get(key);
             return value instanceof String ? (String) value : null;
         } catch (Throwable t) {
             log.warn("스냅샷 읽기 실패", t);
@@ -83,11 +89,11 @@ public final class SnapshotStore {
     }
 
     /** 지우기. 스키마가 안 맞는 스냅샷을 버릴 때 쓴다. */
-    public static void clear() {
+    public void clear() {
         try {
             PluginSettings settings = settings();
             if (settings != null) {
-                settings.remove(KEY);
+                settings.remove(key);
             }
         } catch (Throwable t) {
             log.warn("스냅샷 삭제 실패", t);

@@ -180,6 +180,9 @@ IntersectionObserver 로 현재 위치를 강조하고, 없으면 색인은 그�
   중복 이름 필드는 마지막 변경일을 "부정확"으로 표시하고 값을 붙이지 않는다.
 - **Velocity는 문자열을 enum으로 변환하지 못한다.** `FieldUsage.getRefCount(String)` /
   `getRefs(String)`가 템플릿용 입구다.
+- **Velocity 는 `hasX()` 를 프로퍼티로 인식하지 않는다.** `$action.hasFoo` 는
+  `getHasFoo()`/`isHasFoo()` 를 찾고, 없으면 조용히 false 다 — 구역 전체가 사라진다.
+  새 접근자는 `get`/`is` 로 시작할 것(실측 23·36번. 같은 함정을 두 번 밟았다).
 - **`catch (RuntimeException)`으로는 부족하다.** 8.13으로 컴파일해 8.17.1에서 돌리므로
   그 가정이 깨질 때 나오는 것은 `NoSuchMethodError` / `NoClassDefFoundError` /
   `AbstractMethodError` — 전부 `Error`다. 즉 **가장 현실적인 실패 모드가 유일하게
@@ -274,7 +277,6 @@ Sprint / Rank 가 Jira 관리 화면에도 안 보인다.
 - ~~v1.5: 이슈 네비게이터 컬럼 레이아웃 집계~~ → v1.1.0 에서 넣었다(실측 32번)
 - ~~v1.5: 재시작 후에도 결과 유지~~ → v1.2.0 에서 넣었다(실측 33번). AO 가 아니라
   SAL `PluginSettings` 다 — 이유는 33번.
-- v2: 심층 스캔 — `AO_*` 테이블의 문자열/CLOB 컬럼에서 `customfield_<id>` LIKE 검색.
-  비용이 크므로 별도 버튼 + 소요 시간 경고 + 백그라운드 실행, 결과는
-  "테이블명 / 행 ID / 어느 앱의 것으로 추측" 수준까지만 (의미 해석은 하지 않는다)
+- ~~v2: 심층 스캔~~ → v1.3.0 에서 넣었다(실측 36번). 결과는 "테이블명 / 행 ID"까지다 —
+  "어느 앱인지"는 뺐다. AO 프리픽스로 앱을 알아낼 방법이 없다(실측 35번)
 - 기존 `inactiveUser_search` 앱을 이 플러그인의 `users` 모듈로 이관 (기획서 결정 6)

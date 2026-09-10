@@ -17,6 +17,8 @@
         .janitor-summary dd { margin: 0; font-size: 16px; }
         .janitor-verdict { margin: 0 0 20px; }
         .janitor-refgroup { margin-bottom: 24px; }
+        /* 참조 표들과 떼어 놓는다. 위쪽은 "참조", 여기는 "문자열 일치"다. */
+        .janitor-deep { margin-top: 32px; padding-top: 16px; border-top: 2px solid #dfe1e6; }
         .janitor-refgroup h3 { margin-bottom: 6px; }
         .janitor-meta { color: #707070; font-size: 12px; }
         .janitor-cellnote { color: #6b778c; }
@@ -204,6 +206,42 @@
 
 #foreach ($type in $action.referenceTypes)
     #refgroup($type.name() $type)
+#end
+
+#* 심층 스캔 결과. 참조 그룹들과 <b>떨어뜨려</b> 둔다 — 성격이 다르기 때문이다.
+   위쪽 표들은 "무엇이 이 필드를 참조한다"이고, 여기는 "어느 앱 테이블의 문자열에
+   이 필드 ID가 들어 있다"까지다. 그 차이를 제목과 안내 문구가 계속 말해야 한다. *#
+#if ($action.deepResultAvailable)
+    <div class="janitor-refgroup janitor-deep">
+        <h3>$action.text("janitor.fields.deep.detail.title") ($action.deepHits.size())</h3>
+        <p class="janitor-meta">$action.text("janitor.fields.deep.detail.caveat")</p>
+        #if ($action.deepHits.size() == 0)
+            <p class="janitor-none">$action.text("janitor.fields.deep.detail.none")</p>
+        #else
+            <table class="aui">
+                <thead>
+                <tr>
+                    <th>$action.text("janitor.fields.deep.detail.table")</th>
+                    <th>$action.text("janitor.fields.deep.detail.row")</th>
+                </tr>
+                </thead>
+                <tbody>
+                #foreach ($hit in $action.deepHits)
+                    <tr>
+                        <td>$action.escape($hit.table)</td>
+                        <td>
+                            #if ($hit.rowId)
+                                $action.escape($hit.rowId)
+                            #else
+                                <span class="janitor-cellnote">-</span>
+                            #end
+                        </td>
+                    </tr>
+                #end
+                </tbody>
+            </table>
+        #end
+    </div>
 #end
 
 <div class="aui-message aui-message-info">

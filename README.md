@@ -58,6 +58,7 @@ Jira가 판단 재료를 주지 않는다.
 | C · 조회 | 대시보드 가젯 | `gadgetuserpreference` 문자열 스캔 |
 | C · 조회 | 이슈 네비게이터 컬럼 | `columnlayout` + `columnlayoutitem` (시스템 기본 / 필터 / 개인 설정을 구분한다) |
 | 소유 | 앱이 잠근 필드 (Sprint, Epic Link, Rank …) | `managedconfigurationitem` 단일 쿼리 (앱이 비활성이어도 잡힌다) |
+| D · 심층 | 앱 테이블(`AO_*`)의 문자열 | 별도 버튼으로 실행. **참조가 아니라 문자열 일치**이므로 라벨에 반영하지 않고 따로 보여준다 |
 
 각 항목에는 해당 Jira 관리 화면 링크가 붙는다. 실제 삭제·수정은 Jira 표준 화면에서 한다.
 
