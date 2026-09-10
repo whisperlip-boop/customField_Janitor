@@ -37,9 +37,11 @@ docker exec <jira-container> tail -100 /var/atlassian/application-data/jira/log/
 
 ```
 com.bskim.jira.janitor.fields
-├── dao/          직접 SQL을 쓰는 유일한 곳 (JanitorDao)
+├── dao/          직접 SQL을 쓰는 유일한 곳 (JanitorDao · DeepScanDao)
 ├── model/        FieldUsage / Reference / UsageStatus / ScanResult
-├── scan/         ScanService(싱글턴) + ScanContext + collector/*
+├── scan/         AbstractScanRunner(생명주기) ← ScanService(싱글턴) + ScanContext + collector/*
+├── deep/         DeepScanService(러너 상속) · DeepScanPolicy(상한·예외) · DeepResultCodec
+├── store/        SnapshotEnvelope(봉투) · ResultCodec/ScanResultCodec · SnapshotStore · ScanLock
 ├── rest/         FieldsResource + dto (public 필드 POJO → Jackson)
 └── web/          CustomFieldUsageAction(webwork1) + AdminGuard + AdminOnlyCondition
 ```
@@ -57,6 +59,12 @@ com.bskim.jira.janitor.fields
 대상 이름이 데이터에 없는 참조(예: 시스템 기본 컬럼)는 `targetName`을 비우고 종류를
 `detailI18nKey`로 넘긴다. `detail.vm`이 그 키를 대상 자리에 그린다 — 스캔 스레드에는
 보는 사람의 로케일이 없어서 이름을 그때 만들 수 없기 때문이다.
+
+**스캔 생명주기는 `AbstractScanRunner` 한 곳에만 있다.** 잠금·복원·저장·실패 보관을
+`ScanService`/`DeepScanService` 에 다시 쓰지 말 것 — 같은 결함이 두 서비스에서 세 번 나와
+합친 것이다(실측 40번). 스냅샷은 `SnapshotEnvelope` 하나에 결과 코덱 둘이고, **수집·판정의
+뜻이 바뀌면 그 코덱의 `SCHEMA` 를 올린다**(형식이 같아도). 플러그인 버전이 다르면 어차피
+버린다 — 리팩터링 릴리스에서도 재스캔 한 번이 대가고, 그걸 아끼려 모양 키를 쓰지 않은 이유는 40번.
 
 ## 언어 전환 (`LocaleText`)
 

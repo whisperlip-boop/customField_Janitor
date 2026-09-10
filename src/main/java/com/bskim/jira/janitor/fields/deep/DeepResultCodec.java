@@ -4,7 +4,7 @@ import com.atlassian.jira.util.json.JSONArray;
 import com.atlassian.jira.util.json.JSONException;
 import com.atlassian.jira.util.json.JSONObject;
 import com.bskim.jira.janitor.fields.model.ScanProblem;
-import com.bskim.jira.janitor.fields.scan.ScanFailure;
+import com.bskim.jira.janitor.fields.store.ResultCodec;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -12,72 +12,31 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.bskim.jira.janitor.fields.store.SnapshotEnvelope.nullSafe;
+import static com.bskim.jira.janitor.fields.store.SnapshotEnvelope.optString;
+
 /**
- * 심층 스캔 결과 ↔ JSON. 일반 스캔의 {@code SnapshotCodec} 과 같은 규칙이다 —
- * 판(스키마·플러그인 버전)이 다르면 버리고, 결과와 실패를 한 봉투에 담는다.
+ * 심층 스캔 결과 본문 ↔ JSON. 봉투(판·버전·실패)는 {@code SnapshotEnvelope} 이 맡는다.
  *
  * <p>SCHEMA 2: 행 단위 히트를 테이블 단위 {@link DeepTableMatch} 로 바꿨고
  * skippedPrefixes 를 뺐다(코드 상수라 실어 나를 이유가 없다).
  */
-public final class DeepSnapshotCodec {
+public final class DeepResultCodec implements ResultCodec<DeepScanResult> {
 
     public static final int SCHEMA = 2;
 
-    private DeepSnapshotCodec() {
+    public static final DeepResultCodec INSTANCE = new DeepResultCodec();
+
+    private DeepResultCodec() {
     }
 
-    /** 스냅샷 한 장. 결과와 실패를 <b>함께</b> 담는다. */
-    public static final class Snapshot {
-
-        public final DeepScanResult result;
-        public final ScanFailure failure;
-
-        public Snapshot(DeepScanResult result, ScanFailure failure) {
-            this.result = result;
-            this.failure = failure;
-        }
+    @Override
+    public int schema() {
+        return SCHEMA;
     }
 
-    public static String write(DeepScanResult result, ScanFailure failure, String pluginVersion)
-            throws JSONException {
-        JSONObject root = new JSONObject();
-        root.put("schema", SCHEMA);
-        root.put("pluginVersion", pluginVersion == null ? "" : pluginVersion);
-        root.put("result", result == null ? JSONObject.NULL : writeResult(result));
-        root.put("failure", failure == null ? JSONObject.NULL : writeFailure(failure));
-        return root.toString();
-    }
-
-    public static Snapshot read(String json, String pluginVersion) throws JSONException {
-        if (json == null || json.trim().isEmpty()) {
-            return null;
-        }
-        JSONObject root = new JSONObject(json);
-        if (root.optInt("schema", -1) != SCHEMA) {
-            return null;
-        }
-        if (!root.optString("pluginVersion", "").equals(pluginVersion == null ? "" : pluginVersion)) {
-            return null;
-        }
-        return new Snapshot(
-                root.isNull("result") ? null : readResult(root.getJSONObject("result")),
-                root.isNull("failure") ? null : readFailure(root.getJSONObject("failure")));
-    }
-
-    private static JSONObject writeFailure(ScanFailure failure) throws JSONException {
-        JSONObject json = new JSONObject();
-        json.put("startedAt", failure.getStartedAt().getTime());
-        json.put("finishedAt", failure.getFinishedAt().getTime());
-        json.put("message", nullSafe(failure.getMessage()));
-        return json;
-    }
-
-    private static ScanFailure readFailure(JSONObject json) throws JSONException {
-        return new ScanFailure(new Date(json.getLong("startedAt")), new Date(json.getLong("finishedAt")),
-                optString(json, "message"));
-    }
-
-    private static JSONObject writeResult(DeepScanResult result) throws JSONException {
+    @Override
+    public JSONObject write(DeepScanResult result) throws JSONException {
         JSONObject json = new JSONObject();
         json.put("startedAt", result.getStartedAt().getTime());
         json.put("finishedAt", result.getFinishedAt().getTime());
@@ -110,7 +69,8 @@ public final class DeepSnapshotCodec {
         return json;
     }
 
-    private static DeepScanResult readResult(JSONObject json) throws JSONException {
+    @Override
+    public DeepScanResult read(JSONObject json) throws JSONException {
         Map<Long, List<DeepTableMatch>> matches = new LinkedHashMap<Long, List<DeepTableMatch>>();
         JSONObject matchesJson = json.optJSONObject("matches");
         if (matchesJson != null) {
@@ -147,14 +107,5 @@ public final class DeepSnapshotCodec {
         return new DeepScanResult(new Date(json.getLong("startedAt")),
                 new Date(json.getLong("finishedAt")), json.optInt("tablesScanned", 0),
                 json.optLong("rowsCounted", 0L), matches, problems);
-    }
-
-    /** {@code JSONObject.optString} 은 없을 때 빈 문자열을 준다. 우리는 null 이 필요하다. */
-    private static String optString(JSONObject json, String key) {
-        return json.isNull(key) ? null : json.optString(key, null);
-    }
-
-    private static Object nullSafe(String value) {
-        return value == null ? JSONObject.NULL : value;
     }
 }

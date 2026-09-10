@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * <ul>
  * <li><b>결과</b>는 메모리에 없으면 복원한다. 방금 실패했더라도 배너가 가리킬 옛 표가 필요하다.</li>
  * <li><b>실패</b>는 이 JVM 이 아직 아무것도 만들지 않았을 때만 복원한다. 저장소가
- * startScan() 때는 닿지 않고 saveSnapshot() 때 닿았다면 첫 복원이 방금 성공한 결과 위에서
+ * start() 때는 닿지 않고 saveSnapshot() 때 닿았다면 첫 복원이 방금 성공한 결과 위에서
  * 돈다 — 그때 옛 실패를 올리면 "마지막 스캔이 실패했습니다"가 방금 성공한 스캔 뒤에 뜬다.</li>
  * </ul>
  *

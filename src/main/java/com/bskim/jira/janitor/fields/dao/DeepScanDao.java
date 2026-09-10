@@ -4,6 +4,7 @@ import com.atlassian.jira.component.ComponentAccessor;
 import com.atlassian.jira.database.ConnectionFunction;
 import com.atlassian.jira.database.DatabaseAccessor;
 import com.atlassian.jira.database.DatabaseConnection;
+import com.bskim.jira.janitor.fields.deep.DeepScanPolicy;
 import com.bskim.jira.janitor.fields.deep.DeepTable;
 
 import java.sql.Connection;
@@ -13,18 +14,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * 앱 테이블({@code AO_*})을 직접 훑는 심층 스캔의 SQL. 일반 스캔의 SQL과 성격이
  * 달라 {@link JanitorDao} 와 나눴다 — 여기는 <b>어떤 테이블이 있는지도 모르는 채</b>
  * {@code DatabaseMetaData} 로 스키마를 읽어 쿼리를 만든다.
  *
- * <p>실측과 리뷰에서 나온 규칙(docs/00 35·36번, 리뷰 18·25·27번):
+ * <p>실측과 리뷰에서 나온 규칙(docs/00 35·36·39번):
  * <ul>
  *   <li><b>식별자는 반드시 인용한다.</b> AO 테이블 이름은 대문자라 PostgreSQL 에서
  *       인용 없이 쓰면 소문자로 접혀 실패한다. 인용 문자는 DB마다 달라
@@ -38,36 +35,34 @@ import java.util.Set;
  *   <li><b>감사 로그 프리픽스는 건너뛴다.</b> 거기 걸리는 것은 참조가 아니라 이력이라
  *       한 번이라도 설정된 모든 필드가 걸린다. 가장 크게 자라는 테이블이기도 하다.</li>
  *   <li><b>테이블마다 쿼리 하나.</b> 필드마다도, 컬럼마다도 아니다.</li>
+ *   <li><b>행을 쌓지 않고 흘려보낸다.</b> 전에는 500행의 CLOB 을 이어붙여 목록에 담아
+ *       돌려줬다 — 값 복사 두 배에 500행 동시 보유. 이제 한 행씩 {@link RowSink} 로 넘긴다.</li>
  *   <li><b>잘리면 말한다.</b> 상한을 넘는 행이 있으면 {@link Rows#truncated} 로 알린다 —
  *       조용히 자르면 상세 화면이 "발견되지 않았습니다"를 단정문으로 낸다.</li>
  * </ul>
  */
 public class DeepScanDao {
 
-    /**
-     * 훑지 않는 프리픽스. 지금은 감사 로그 하나다(docs/00 35번).
-     *
-     * <p>이 예외는 "해석하지 않는다"는 원칙이 굽는 유일한 자리다. 그래서 화면에
-     * 건너뛴 사실을 표시한다 — 조용히 빼면 표가 완전한 것으로 읽힌다.
-     */
-    public static final Set<String> SKIPPED_PREFIXES =
-            Collections.unmodifiableSet(new HashSet<String>(Arrays.asList("AO_C77861")));
+    /** {@link #findRows} 가 읽은 행을 한 줄씩 받는 곳. 컬럼 값은 이어붙이지 않고 따로 준다. */
+    public interface RowSink {
 
-    /** 한 테이블에서 읽어 올 행의 상한. 넘으면 {@link Rows#truncated} 가 참이다. */
-    public static final int ROW_LIMIT = 500;
+        /**
+         * @param rowId  기본키 값. 기본키가 없는 테이블이면 null.
+         * @param values 텍스트 컬럼 값들(null 제외). 같은 행의 것이다 — 필드 하나가 두 컬럼에
+         *               있어도 부르는 쪽이 행 단위로 한 번만 세어야 한다.
+         */
+        void row(String rowId, List<String> values);
+    }
 
-    /** 쿼리 하나에 허용하는 시간. 넘으면 그 테이블만 포기하고 다음으로 간다. */
-    static final int QUERY_TIMEOUT_SECONDS = 60;
-
-    /** 한 테이블에서 읽은 행들. */
+    /** 한 테이블을 읽은 결과 요약. 행 자체는 {@link RowSink} 로 이미 넘어갔다. */
     public static final class Rows {
 
-        /** 행마다 [행 ID(없으면 null), 텍스트 컬럼을 이어붙인 문자열]. */
-        public final List<String[]> rows;
+        /** 넘긴 행 수. */
+        public final int rows;
         /** 상한을 넘어 잘렸는가. 참이면 이 테이블의 결과는 불완전하다. */
         public final boolean truncated;
 
-        Rows(List<String[]> rows, boolean truncated) {
+        Rows(int rows, boolean truncated) {
             this.rows = rows;
             this.truncated = truncated;
         }
@@ -107,7 +102,7 @@ public class DeepScanDao {
                         if (textColumns.isEmpty()) {
                             continue;
                         }
-                        tables.add(new DeepTable(name, primaryKey(meta, name), textColumns, -1L));
+                        tables.add(new DeepTable(name, primaryKey(meta, name), textColumns));
                     }
                 } catch (SQLException e) {
                     throw new JanitorDao.DaoException("앱 테이블 목록을 읽지 못했다", e);
@@ -135,7 +130,7 @@ public class DeepScanDao {
                     // executeQuery 를 해 버리면 그 뒤의 setQueryTimeout 은 아무 일도
                     // 하지 않는다 — v1.3.0 이 정확히 그렇게 되어 있었다(리뷰 지적).
                     try (PreparedStatement statement = jdbc.prepareStatement(sql)) {
-                        statement.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
+                        statement.setQueryTimeout(DeepScanPolicy.QUERY_TIMEOUT_SECONDS);
                         try (ResultSet rows = statement.executeQuery()) {
                             return rows.next() ? rows.getLong(1) : 0L;
                         }
@@ -148,47 +143,48 @@ public class DeepScanDao {
     }
 
     /**
-     * 테이블 하나에서 커스텀 필드 표기를 담은 행을 읽는다.
+     * 테이블 하나에서 커스텀 필드 표기를 담은 행을 읽어 한 행씩 {@code sink} 에 넘긴다.
      *
      * @throws JanitorDao.DaoException 그 테이블만 실패했을 때. 부르는 쪽이 "확인 불가"로
      *         기록하고 다음 테이블로 간다 — 앱 하나 때문에 심층 스캔 전체를 버리지 않는다.
      */
-    public Rows findRows(final DeepTable table) {
+    public Rows findRows(final DeepTable table, final RowSink sink) {
         return databaseAccessor.executeQuery(new ConnectionFunction<Rows>() {
             @Override
             public Rows run(DatabaseConnection connection) {
                 Connection jdbc = connection.getJdbcConnection();
-                List<String[]> rows = new ArrayList<String[]>();
+                int count = 0;
                 boolean truncated = false;
                 try {
                     String sql = selectSql(table, quote(jdbc.getMetaData()), schema);
                     try (PreparedStatement statement = jdbc.prepareStatement(sql)) {
-                        statement.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
+                        statement.setQueryTimeout(DeepScanPolicy.QUERY_TIMEOUT_SECONDS);
                         // 상한보다 하나 더 읽는다. 그 하나가 있으면 "잘렸다"를 안다.
-                        statement.setMaxRows(ROW_LIMIT + 1);
+                        statement.setMaxRows(DeepScanPolicy.ROW_LIMIT + 1);
                         try (ResultSet result = statement.executeQuery()) {
                             while (result.next()) {
-                                if (rows.size() == ROW_LIMIT) {
+                                if (count == DeepScanPolicy.ROW_LIMIT) {
                                     truncated = true;
                                     break;
                                 }
-                                StringBuilder text = new StringBuilder();
+                                List<String> values = new ArrayList<String>(table.getTextColumns().size());
                                 for (String column : table.getTextColumns()) {
                                     String value = result.getString(column);
                                     if (value != null) {
-                                        text.append(value).append('\n');
+                                        values.add(value);
                                     }
                                 }
                                 String id = table.getIdColumn() == null
                                         ? null : result.getString(table.getIdColumn());
-                                rows.add(new String[]{id, text.toString()});
+                                sink.row(id, values);
+                                count++;
                             }
                         }
                     }
                 } catch (SQLException e) {
                     throw new JanitorDao.DaoException("테이블 " + table.getName() + " 조회 실패", e);
                 }
-                return new Rows(rows, truncated);
+                return new Rows(count, truncated);
             }
         });
     }
@@ -226,7 +222,7 @@ public class DeepScanDao {
     }
 
     public static boolean isSkipped(String tableName) {
-        for (String prefix : SKIPPED_PREFIXES) {
+        for (String prefix : DeepScanPolicy.SKIPPED_PREFIXES) {
             if (tableName.startsWith(prefix)) {
                 return true;
             }

@@ -14,9 +14,6 @@ import java.util.List;
  */
 public final class DeepTableMatch {
 
-    /** 행 ID 표본 상한. 나머지는 {@link #getMatchCount()} 로만 남는다. */
-    public static final int SAMPLE_ROWS = 20;
-
     private final String table;
     private int matchCount;
     private final List<String> sampleRowIds = new ArrayList<String>();
@@ -28,7 +25,7 @@ public final class DeepTableMatch {
     /** 일치 행 하나를 더한다. 표본이 차면 건수만 올린다. */
     void add(String rowId) {
         matchCount++;
-        if (rowId != null && sampleRowIds.size() < SAMPLE_ROWS) {
+        if (rowId != null && sampleRowIds.size() < DeepScanPolicy.SAMPLE_ROWS) {
             sampleRowIds.add(rowId);
         }
     }

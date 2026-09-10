@@ -8,91 +8,37 @@ import com.bskim.jira.janitor.fields.model.Reference;
 import com.bskim.jira.janitor.fields.model.ReferenceType;
 import com.bskim.jira.janitor.fields.model.ScanProblem;
 import com.bskim.jira.janitor.fields.model.ScanResult;
-import com.bskim.jira.janitor.fields.scan.ScanFailure;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-/**
- * 스캔 결과 ↔ JSON. 재기동·재배포 후에도 표가 남아 있게 하는 유일한 통로다.
- *
- * <p>Jira 가 들고 있는 {@code com.atlassian.jira.util.json} 을 쓴다. Jackson 을
- * 직접 import 하면 8.13 에서 되고 8.17.1 에서 깨지는 종류의 의존이 하나 늘어난다.
- *
- * <p><b>스키마·플러그인 버전이 다르면 스냅샷을 버린다.</b> 관대하게 읽으면 안 된다:
- * v1.0.2 가 저장한 스냅샷에는 컬럼 참조가 없어서, 컬럼으로만 쓰이던 필드가
- * [미사용]으로 나온다. 정보가 없는 것이 삭제 신호로 바뀌는 것이 이 도구에서 가장
- * 나쁜 실패다(docs/00 15번). 버리면 "아직 스캔한 적 없음"이 되고 관리자는 스캔을
- * 다시 누른다 — 잃는 것은 시간뿐이다.
- */
-public final class SnapshotCodec {
+import static com.bskim.jira.janitor.fields.store.SnapshotEnvelope.nullSafe;
+import static com.bskim.jira.janitor.fields.store.SnapshotEnvelope.optString;
 
-    /** 저장 형식 자체의 판(형식을 바꾸면 올린다). */
+/**
+ * 일반 스캔 결과 본문 ↔ JSON. 봉투는 {@link SnapshotEnvelope} 이 맡는다.
+ *
+ * <p>Jira 가 들고 있는 {@code com.atlassian.jira.util.json} 을 쓴다. Jackson 을 직접
+ * import 하면 8.13 에서 되고 8.17.1 에서 깨지는 종류의 의존이 하나 늘어난다.
+ */
+public final class ScanResultCodec implements ResultCodec<ScanResult> {
+
+    /** 결과 본문의 판. 수집·판정의 뜻이 바뀌면 올린다(형식이 같아도). */
     public static final int SCHEMA = 1;
 
-    private SnapshotCodec() {
+    public static final ScanResultCodec INSTANCE = new ScanResultCodec();
+
+    private ScanResultCodec() {
     }
 
-    /** 스냅샷 한 장. 결과와 실패를 함께 담는다. */
-    public static final class Snapshot {
-
-        public final ScanResult result;
-        public final ScanFailure failure;
-        public final Date savedAt;
-
-        public Snapshot(ScanResult result, ScanFailure failure, Date savedAt) {
-            this.result = result;
-            this.failure = failure;
-            this.savedAt = savedAt;
-        }
+    @Override
+    public int schema() {
+        return SCHEMA;
     }
 
-    public static String write(ScanResult result, ScanFailure failure, String pluginVersion)
-            throws JSONException {
-        JSONObject root = new JSONObject();
-        root.put("schema", SCHEMA);
-        root.put("pluginVersion", pluginVersion == null ? "" : pluginVersion);
-        root.put("savedAt", System.currentTimeMillis());
-        root.put("result", result == null ? JSONObject.NULL : writeResult(result));
-        root.put("failure", failure == null ? JSONObject.NULL : writeFailure(failure));
-        return root.toString();
-    }
-
-    /**
-     * @return 읽을 수 없거나 판이 다르면 null. 부르는 쪽은 "스냅샷 없음"으로 다룬다.
-     */
-    public static Snapshot read(String json, String pluginVersion) throws JSONException {
-        if (json == null || json.trim().isEmpty()) {
-            return null;
-        }
-        JSONObject root = new JSONObject(json);
-        if (root.optInt("schema", -1) != SCHEMA) {
-            return null;
-        }
-        if (!root.optString("pluginVersion", "").equals(pluginVersion == null ? "" : pluginVersion)) {
-            return null;
-        }
-        ScanResult result = root.isNull("result") ? null : readResult(root.getJSONObject("result"));
-        ScanFailure failure = root.isNull("failure") ? null : readFailure(root.getJSONObject("failure"));
-        return new Snapshot(result, failure, new Date(root.optLong("savedAt", 0L)));
-    }
-
-    private static JSONObject writeFailure(ScanFailure failure) throws JSONException {
-        JSONObject json = new JSONObject();
-        json.put("startedAt", failure.getStartedAt().getTime());
-        json.put("finishedAt", failure.getFinishedAt().getTime());
-        json.put("message", failure.getMessage() == null ? JSONObject.NULL : failure.getMessage());
-        return json;
-    }
-
-    private static ScanFailure readFailure(JSONObject json) throws JSONException {
-        return new ScanFailure(new Date(json.getLong("startedAt")),
-                new Date(json.getLong("finishedAt")),
-                json.isNull("message") ? null : json.getString("message"));
-    }
-
-    private static JSONObject writeResult(ScanResult result) throws JSONException {
+    @Override
+    public JSONObject write(ScanResult result) throws JSONException {
         JSONObject json = new JSONObject();
         json.put("startedAt", result.getStartedAt().getTime());
         json.put("finishedAt", result.getFinishedAt().getTime());
@@ -116,7 +62,8 @@ public final class SnapshotCodec {
         return json;
     }
 
-    private static ScanResult readResult(JSONObject json) throws JSONException {
+    @Override
+    public ScanResult read(JSONObject json) throws JSONException {
         List<FieldUsage> fields = new ArrayList<FieldUsage>();
         JSONArray fieldArray = json.getJSONArray("fields");
         for (int i = 0; i < fieldArray.length(); i++) {
@@ -237,14 +184,5 @@ public final class SnapshotCodec {
             }
         }
         return out;
-    }
-
-    /** {@code JSONObject.optString} 은 없을 때 빈 문자열을 준다. 우리는 null 이 필요하다. */
-    private static String optString(JSONObject json, String key) {
-        return json.isNull(key) ? null : json.optString(key, null);
-    }
-
-    private static Object nullSafe(String value) {
-        return value == null ? JSONObject.NULL : value;
     }
 }

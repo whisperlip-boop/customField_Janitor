@@ -10,12 +10,10 @@ import com.bskim.jira.janitor.fields.model.FieldUsage;
 import com.bskim.jira.janitor.fields.model.ScanProblem;
 import com.bskim.jira.janitor.fields.model.ScanProgress;
 import com.bskim.jira.janitor.fields.model.ScanResult;
-import com.bskim.jira.janitor.fields.store.SnapshotCodec;
 import com.bskim.jira.janitor.fields.store.PluginVersion;
 import com.bskim.jira.janitor.fields.store.ScanLock;
-import com.bskim.jira.janitor.fields.store.SnapshotMerge;
+import com.bskim.jira.janitor.fields.store.ScanResultCodec;
 import com.bskim.jira.janitor.fields.store.SnapshotStore;
-import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -23,25 +21,19 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 스캔 실행기 겸 결과 보관소. 기획서 9장.
+ * 일반 스캔 — 기획서 9장. 생명주기(잠금·스냅샷·실패 보관)는 {@link AbstractScanRunner} 에 있고
+ * 여기는 <b>무엇을 훑는지</b>만 있다.
  *
  * <p>스캔은 관리자가 "지금 스캔"을 눌렀을 때만 도는 비동기 작업이다. 실시간 조회는
  * 하지 않는다 — 관리자 도구는 예측 가능한 게 실시간보다 낫다.
  *
  * <p>싱글턴이다. 결과를 메모리에 들고 있어야 목록/상세/CSV/커스텀 필드 화면 주입이
- * 모두 같은 스냅샷을 보게 된다. Data Center 다중 노드에서는 노드별로 캐시가 갈리므로
- * 화면에 항상 스캔 시각을 함께 보여준다(9장).
- *
- * <p>Spring 컴포넌트로 등록하지 않고 정적 싱글턴으로 두는 이유: OSGi/Spring 주입
- * 경로를 하나 줄이면 그만큼 조용히 깨질 곳이 줄어든다. 보관 위치가 "플러그인
- * 클래스로더 수명 동안의 메모리"라는 성질은 어느 쪽이든 같다.
+ * 모두 같은 스냅샷을 보게 된다. Spring 컴포넌트로 등록하지 않고 정적 싱글턴으로 두는
+ * 이유: OSGi/Spring 주입 경로를 하나 줄이면 그만큼 조용히 깨질 곳이 줄어든다.
  */
-public final class ScanService {
-
-    private static final Logger log = Logger.getLogger(ScanService.class);
+public final class ScanService extends AbstractScanRunner<ScanResult, ScanProgress> {
 
     private static final ScanService INSTANCE = new ScanService();
 
@@ -61,189 +53,42 @@ public final class ScanService {
         }
     };
 
-    private final AtomicReference<ScanProgress> progress = new AtomicReference<ScanProgress>(ScanProgress.idle());
-    private final AtomicReference<ScanResult> lastResult = new AtomicReference<ScanResult>();
-    /**
-     * 마지막 실패. 진행률({@link ScanProgress})은 다음 스캔이 시작되면 덮이고 화면을
-     * 새로 그리면 사라지므로, 실패 사실은 따로 붙잡아 둔다.
-     *
-     * <p>이게 없으면 두 번째 이후의 스캔이 실패했을 때 관리자가 <b>몇 주 전 스냅샷을
-     * 방금 스캔한 결과로 믿는다</b> — 화면에는 이전 스캔 시각만 있고 실패 흔적이 없다.
-     */
-    private final AtomicReference<ScanFailure> lastFailure = new AtomicReference<ScanFailure>();
-
-    /**
-     * 스냅샷을 <b>성공적으로</b> 읽었는가. 플러그인이 켜질 때가 아니라 처음 물어볼 때
-     * 읽는다 — 활성화 시점에는 SAL 서비스가 아직 안 떠 있을 수 있다. 그래서 저장소에
-     * 못 닿은 읽기로는 잠그지 않는다: 잠그면 그 뒤 첫 스캔이 실패할 때 빈 결과가 좋은
-     * 스냅샷을 덮는다(리뷰 지적).
-     */
-    private boolean snapshotRead = false;
-    /** 잠기지 않는 두 조건의 WARN 을 한 번만 내기 위한 표시. 1.5초 폴링마다 남기면 로그가 넘친다. */
-    private boolean warnedUnknownVersion = false;
-    private boolean warnedUnreachable = false;
-
     private ScanService() {
-    }
-
-    /**
-     * 저장된 스냅샷을 메모리로 올린다. 성공하면 한 번만, 저장소에 못 닿았으면 다음에 다시.
-     *
-     * <p>복원 사실을 WARN 으로 남기는 이유: 이 인스턴스들은 플러그인 패키지의 INFO 를
-     * 버린다(실측). 표에 찍힌 시각이 <b>이번 기동에서 스캔한 것</b>인지 <b>복원된
-     * 것</b>인지는 문제를 쫓을 때 첫 번째로 알아야 하는 사실이라 로그에서 사라지면 안 된다.
-     *
-     * <p>메모리는 DB 행의 캐시다 — 없으면 읽어 오고(read-through), 스캔이 끝나면
-     * 쓴다(write-through). Data Center 에서 스캔하지 않은 노드는 자기가 마지막으로
-     * 읽은 스냅샷을 계속 보여준다. v1.5 는 노드 간 무효화를 하지 않는다.
-     *
-     * @return 이제 스냅샷을 읽은 상태인가(원래 읽었거나 지금 읽었거나). 거짓이면 쓰면 안 된다.
-     */
-    private synchronized boolean restoreSnapshot() {
-        if (snapshotRead) {
-            return true;
-        }
-        String version = PluginVersion.current();
-        if (!PluginVersion.isKnown(version)) {
-            // 버전을 못 읽으면 판 검사가 무력해진다 — 쓸 때도 읽을 때도 "unknown"이라
-            // 어느 버전의 스냅샷이든 통과한다. 시끄럽게 죽는 편이 낫다. 잠그지 않는다 —
-            // 나중에 버전을 읽을 수 있게 되면 그때 복원한다.
-            if (!warnedUnknownVersion) {
-                warnedUnknownVersion = true;
-                log.warn("플러그인 버전을 못 읽어 스냅샷을 쓰지 않는다 — 스캔을 눌러야 결과가 나온다");
-            }
-            return false;
-        }
-        SnapshotStore.Loaded loaded = new SnapshotStore(SnapshotStore.SCAN_KEY).load();
-        if (!loaded.reachable) {
-            if (!warnedUnreachable) {
-                warnedUnreachable = true;
-                log.warn("스냅샷 저장소에 아직 닿지 못했다 — 다음 요청에서 다시 읽는다");
-            }
-            return false;
-        }
-        snapshotRead = true;
-        if (loaded.isEmpty()) {
-            return true;
-        }
-        try {
-            SnapshotCodec.Snapshot snapshot = SnapshotCodec.read(loaded.json, version);
-            if (snapshot == null) {
-                // 표가 사라진 이유를 남긴다. 이것 없이 업그레이드하면 관리자에게는
-                // "결과가 그냥 없어졌다"로 보인다.
-                log.warn("저장된 스냅샷의 판이 지금 버전(" + version
-                        + ")과 달라 버렸다 — 스캔을 다시 눌러야 한다");
-                return true;
-            }
-            SnapshotMerge.apply(lastResult, lastFailure, snapshot.result, snapshot.failure);
-            log.warn("스캔 스냅샷을 복원했다: 필드 "
-                    + (snapshot.result == null ? 0 : snapshot.result.getFields().size())
-                    + "개, 저장 시각 " + snapshot.savedAt
-                    + (snapshot.failure == null ? "" : " (마지막 스캔은 실패였다)"));
-        } catch (Throwable t) {
-            // 형식이 깨진 스냅샷. 읽기는 성공했으므로 잠근다 — 다음 스캔이 덮어쓴다.
-            log.warn("스캔 스냅샷을 해석하지 못했다 — 스캔을 다시 눌러야 한다", t);
-        }
-        return true;
-    }
-
-    /**
-     * 결과와 실패를 함께 저장한다. 결과만 남기면 재기동 뒤 실패 배너가 사라진다.
-     *
-     * <p><b>읽지 않은 저장소에는 쓰지 않는다.</b> 복원이 아직 안 됐다면(저장소가 아직
-     * 없었거나 버전을 못 읽었거나) 지금 메모리는 DB 보다 적게 알고 있을 수 있고, 그걸
-     * 쓰면 좋은 스냅샷을 덮는다. 그때는 WARN 만 남기고 건너뛴다 — 다음 스캔이 다시 시도한다.
-     */
-    private void saveSnapshot() {
-        if (!restoreSnapshot()) {
-            log.warn("스냅샷을 아직 읽지 못해 이번 결과를 저장하지 않는다 — 재기동하면 사라진다");
-            return;
-        }
-        try {
-            new SnapshotStore(SnapshotStore.SCAN_KEY)
-                    .save(SnapshotCodec.write(lastResult.get(), lastFailure.get(), PluginVersion.current()));
-        } catch (Throwable t) {
-            log.warn("스캔 스냅샷을 저장하지 못했다 — 다음 재기동에서 결과가 사라진다", t);
-        }
+        super(ScanLock.SCAN, "custom-field-janitor-scan", "스캔",
+                new SnapshotStore(SnapshotStore.SCAN_KEY), ScanResultCodec.INSTANCE, PluginVersion.SOURCE);
     }
 
     public static ScanService getInstance() {
         return INSTANCE;
     }
 
-    /**
-     * 스캔을 시작한다. 이미 돌고 있으면(심층 스캔 포함) 아무것도 하지 않고 false를
-     * 준다(기획서 9장의 중복 실행 방지). 호출부는 false를 받으면 현재 진행률을 돌려준다.
-     * 무엇 때문에 막혔는지는 {@link ScanLock#holder()} 에 있다.
-     */
-    public boolean startScan() {
-        // 저장된 스냅샷을 반드시 <b>쓰기 전에</b> 읽는다. 순서가 뒤집히면 이렇게 된다:
-        // 재기동 직후 첫 스캔이 실패하면 lastResult 가 아직 null 인 채로 스냅샷을
-        // 저장해 이전의 성공 결과를 지워 버린다 — "아래 표는 이전 스캔의 결과입니다"
-        // 배너가 가리킬 표가 없어진다. 실패 경로에서만 드러나는 종류의 유실이다.
-        restoreSnapshot();
-        // 심층 스캔과 하나의 잠금을 나눠 쓴다. 둘 다 DB를 두드리므로 같이 돌면 서로를
-        // 느리게 한다. 상대 플래그를 확인하고 자기 플래그를 잡는 방식은 경주가 있었다.
-        if (!ScanLock.getInstance().tryAcquire(ScanLock.SCAN)) {
-            return false;
-        }
-        final Date startedAt = new Date();
-        progress.set(new ScanProgress(ScanProgress.State.RUNNING, ScanProgress.Stage.FIELDS, startedAt, null));
-
-        Thread worker = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    ScanResult result = scan(startedAt);
-                    lastResult.set(result);
-                    lastFailure.set(null);
-                    saveSnapshot();
-                    progress.set(new ScanProgress(ScanProgress.State.DONE, ScanProgress.Stage.FINISHING,
-                            startedAt, null));
-                } catch (Throwable e) {
-                    // RuntimeException이 아니라 Throwable을 잡는다. 이 플러그인은 8.13으로
-                    // 컴파일해 8.17.1에서 돌리므로, 그 가정이 깨질 때 나오는 예외가
-                    // NoSuchMethodError / NoClassDefFoundError / AbstractMethodError —
-                    // 전부 Error다. 가장 현실적인 실패 모드를 놓치면 진행률이 RUNNING에
-                    // 박히고 화면이 1.5초마다 영구 폴링한다(관리자는 이유를 못 본다).
-                    log.error("커스텀 필드 사용처 스캔이 실패했다", e);
-                    String message = e.getClass().getSimpleName()
-                            + (e.getMessage() == null ? "" : ": " + e.getMessage());
-                    lastFailure.set(new ScanFailure(startedAt, new Date(), message));
-                    // 실패도 저장한다. 결과만 남기면 재기동 뒤 옛 표가 배너 없이 살아난다.
-                    saveSnapshot();
-                    progress.set(new ScanProgress(ScanProgress.State.FAILED, null, startedAt, message));
-                } finally {
-                    ScanLock.getInstance().release(ScanLock.SCAN);
-                }
-            }
-        }, "custom-field-janitor-scan");
-        worker.setDaemon(true);
-        worker.start();
-        return true;
+    @Override
+    protected ScanProgress idleProgress() {
+        return ScanProgress.idle();
     }
 
-    public ScanProgress getProgress() {
-        return progress.get();
+    @Override
+    protected ScanProgress runningProgress(Date startedAt) {
+        return new ScanProgress(ScanProgress.State.RUNNING, ScanProgress.Stage.FIELDS, startedAt, null);
     }
 
-    /** 아직 한 번도 스캔하지 않았으면 null. 화면은 "스캔하세요" 안내를 낸다. */
-    public ScanResult getLastResult() {
-        restoreSnapshot();
-        return lastResult.get();
+    @Override
+    protected ScanProgress doneProgress(ScanResult result, Date startedAt) {
+        return new ScanProgress(ScanProgress.State.DONE, ScanProgress.Stage.FINISHING, startedAt, null);
     }
 
-    public boolean isRunning() {
-        return ScanLock.getInstance().isHeldBy(ScanLock.SCAN);
+    @Override
+    protected ScanProgress failedProgress(Date startedAt, String message) {
+        return new ScanProgress(ScanProgress.State.FAILED, null, startedAt, message);
     }
 
-    /** 마지막 스캔이 실패했으면 그 기록, 아니면 null. 성공하면 지워진다. */
-    public ScanFailure getLastFailure() {
-        restoreSnapshot();
-        return lastFailure.get();
+    @Override
+    protected String describeRestored(ScanResult result) {
+        return "필드 " + result.getFields().size() + "개";
     }
 
-    private ScanResult scan(Date startedAt) {
+    @Override
+    protected ScanResult scan(Date startedAt) {
         JanitorDao dao = new JanitorDao();
 
         // 1단계: 필드 목록. 여기서 만든 FieldUsage 객체에 이후 단계가 정보를 붙인다.
@@ -288,7 +133,7 @@ public final class ScanService {
     }
 
     private void stage(Date startedAt, ScanProgress.Stage stage) {
-        progress.set(new ScanProgress(ScanProgress.State.RUNNING, stage, startedAt, null));
+        setProgress(new ScanProgress(ScanProgress.State.RUNNING, stage, startedAt, null));
     }
 
     /**

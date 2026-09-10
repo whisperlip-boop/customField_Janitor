@@ -53,9 +53,4 @@ public final class ColumnLayoutRow {
     public String getFieldIdentifier() {
         return fieldIdentifier;
     }
-
-    /** 시스템 기본 컬럼인가. 개인·필터 어느 쪽에도 속하지 않으면 그렇다. */
-    public boolean isSystemDefault() {
-        return userKey == null && filterId == null;
-    }
 }

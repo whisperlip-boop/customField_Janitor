@@ -21,7 +21,7 @@ import java.util.Map;
  *       {@code ScanResult} 에 나중에 붙일 수도 없다.</li>
  * </ol>
  *
- * <p>건너뛴 프리픽스는 여기 담지 않는다 — 코드의 상수({@code DeepScanDao.SKIPPED_PREFIXES})
+ * <p>건너뛴 프리픽스는 여기 담지 않는다 — 코드의 상수({@code DeepScanPolicy.SKIPPED_PREFIXES})
  * 이고, 판이 다른 스냅샷은 버리므로 결과에 실어 나를 이유가 없다.
  */
 public final class DeepScanResult {

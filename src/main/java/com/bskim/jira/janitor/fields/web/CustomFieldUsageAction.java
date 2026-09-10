@@ -4,7 +4,7 @@ import com.atlassian.jira.web.action.JiraWebActionSupport;
 import com.atlassian.sal.api.websudo.WebSudoRequired;
 import com.bskim.jira.janitor.fields.model.FieldUsage;
 import com.bskim.jira.janitor.fields.model.Reference;
-import com.bskim.jira.janitor.fields.dao.DeepScanDao;
+import com.bskim.jira.janitor.fields.deep.DeepScanPolicy;
 import com.bskim.jira.janitor.fields.deep.DeepTableMatch;
 import com.bskim.jira.janitor.fields.deep.DeepScanResult;
 import com.bskim.jira.janitor.fields.deep.DeepScanService;
@@ -310,7 +310,7 @@ public class CustomFieldUsageAction extends JiraWebActionSupport {
 
     /** 일부러 건너뛴 프리픽스. 코드 상수다. 화면에 그대로 낸다 — 조용히 빼면 표가 완전해 보인다. */
     public List<String> getDeepSkippedPrefixes() {
-        return new ArrayList<String>(new TreeSet<String>(DeepScanDao.SKIPPED_PREFIXES));
+        return new ArrayList<String>(new TreeSet<String>(DeepScanPolicy.SKIPPED_PREFIXES));
     }
 
     public List<ScanProblem> getDeepProblems() {

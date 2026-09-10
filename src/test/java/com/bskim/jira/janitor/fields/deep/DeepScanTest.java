@@ -3,6 +3,9 @@ package com.bskim.jira.janitor.fields.deep;
 import com.bskim.jira.janitor.fields.dao.DeepScanDao;
 import com.bskim.jira.janitor.fields.model.ScanProblem;
 import com.bskim.jira.janitor.fields.scan.ScanFailure;
+import com.bskim.jira.janitor.fields.store.SnapshotEnvelope;
+import com.bskim.jira.janitor.fields.model.FieldUsage;
+import com.bskim.jira.janitor.fields.scan.ScanContext;
 import org.junit.Test;
 
 import java.sql.Types;
@@ -30,7 +33,7 @@ public class DeepScanTest {
 
     private static DeepTable table() {
         return new DeepTable("AO_60DB71_ESTIMATESTATISTIC", "ID",
-                Arrays.asList("FIELD_ID", "TYPE_ID"), 12L);
+                Arrays.asList("FIELD_ID", "TYPE_ID"));
     }
 
     @Test
@@ -65,7 +68,7 @@ public class DeepScanTest {
 
     @Test
     public void 기본키가_없으면_컬럼만_고르고_정렬도_없다() {
-        DeepTable noKey = new DeepTable("AO_ABC123_THING", null, Arrays.asList("BODY"), 3L);
+        DeepTable noKey = new DeepTable("AO_ABC123_THING", null, Arrays.asList("BODY"));
         String sql = DeepScanDao.selectSql(noKey, "\"", null);
         assertTrue(sql, sql.startsWith("SELECT \"BODY\" FROM \"AO_ABC123_THING\""));
         assertFalse(sql, sql.contains("ORDER BY"));
@@ -109,7 +112,7 @@ public class DeepScanTest {
             match.add(String.valueOf(i));
         }
         assertEquals(300, match.getMatchCount());
-        assertEquals(DeepTableMatch.SAMPLE_ROWS, match.getSampleRowIds().size());
+        assertEquals(DeepScanPolicy.SAMPLE_ROWS, match.getSampleRowIds().size());
         assertEquals(280, match.getOverflow());
     }
 
@@ -137,8 +140,8 @@ public class DeepScanTest {
 
     @Test
     public void 결과_왕복() throws Exception {
-        DeepScanResult after = DeepSnapshotCodec.read(
-                DeepSnapshotCodec.write(sample(), null, "1.3.2"), "1.3.2").result;
+        DeepScanResult after = SnapshotEnvelope.read(DeepResultCodec.INSTANCE, 
+                SnapshotEnvelope.write(DeepResultCodec.INSTANCE, sample(), null, "1.3.2"), "1.3.2").result;
 
         assertEquals(204, after.getTablesScanned());
         assertEquals(12345L, after.getRowsCounted());
@@ -155,8 +158,8 @@ public class DeepScanTest {
     @Test
     public void 실패도_결과와_함께_저장된다() throws Exception {
         ScanFailure failure = new ScanFailure(new Date(3000L), new Date(4000L), "SQLException: timeout");
-        DeepSnapshotCodec.Snapshot back = DeepSnapshotCodec.read(
-                DeepSnapshotCodec.write(sample(), failure, "1.3.2"), "1.3.2");
+        SnapshotEnvelope.Snapshot<DeepScanResult> back = SnapshotEnvelope.read(DeepResultCodec.INSTANCE, 
+                SnapshotEnvelope.write(DeepResultCodec.INSTANCE, sample(), failure, "1.3.2"), "1.3.2");
         assertEquals("SQLException: timeout", back.failure.getMessage());
         assertEquals(204, back.result.getTablesScanned());
         assertTrue(back.failure.getFinishedAt().after(back.result.getFinishedAt()));
@@ -164,10 +167,25 @@ public class DeepScanTest {
 
     @Test
     public void 판이_다르면_버린다() throws Exception {
-        String json = DeepSnapshotCodec.write(sample(), null, "1.3.1");
-        assertNull(DeepSnapshotCodec.read(json, "1.3.2"));
-        assertNull(DeepSnapshotCodec.read(null, "1.3.2"));
+        String json = SnapshotEnvelope.write(DeepResultCodec.INSTANCE, sample(), null, "1.3.1");
+        assertTrue(SnapshotEnvelope.read(DeepResultCodec.INSTANCE, json, "1.3.2").isRejected());
+        assertNull(SnapshotEnvelope.read(DeepResultCodec.INSTANCE, null, "1.3.2"));
         // 옛 스키마(1: 행 단위 hits) 는 판이 달라 버려진다.
-        assertNull(DeepSnapshotCodec.read("{\"schema\":1,\"pluginVersion\":\"1.3.2\",\"result\":null}", "1.3.2"));
+        assertEquals("결과 판 1 ≠ 2", SnapshotEnvelope.read(DeepResultCodec.INSTANCE, "{\"envelope\":1,\"schema\":1,\"pluginVersion\":\"1.3.2\",\"result\":null}", "1.3.2").rejected);
+    }
+
+    @Test
+    public void 두_컬럼에_같은_필드가_있어도_행마다_한_번만_센다() {
+        ScanContext context = new ScanContext(Arrays.asList(
+                new FieldUsage(10302L, "A", "t", "t"), new FieldUsage(10303L, "B", "t", "t")));
+        Map<Long, List<DeepTableMatch>> matches = new LinkedHashMap<Long, List<DeepTableMatch>>();
+        DeepScanService.record(matches, context, "AO_X", "1",
+                Arrays.asList("customfield_10302 여기", "그리고 customfield_10302 또", "customfield_10303"));
+        DeepScanService.record(matches, context, "AO_X", "2", Arrays.asList("customfield_10302"));
+        DeepScanService.record(matches, context, "AO_X", "3", Arrays.asList("아무것도 없음"));
+        assertEquals(2, matches.get(10302L).get(0).getMatchCount());
+        assertEquals(Arrays.asList("1", "2"), matches.get(10302L).get(0).getSampleRowIds());
+        assertEquals(1, matches.get(10303L).get(0).getMatchCount());
+        assertEquals(1, matches.get(10302L).size());
     }
 }

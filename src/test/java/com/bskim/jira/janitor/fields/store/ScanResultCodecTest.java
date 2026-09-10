@@ -25,7 +25,9 @@ import static org.junit.Assert.assertTrue;
  * 것으로 보이는데 라벨만 바뀌어 있다. 그래서 라벨을 정하는 값(값 수·참조·잠김·
  * 중복 이름)을 전부 확인한다.
  */
-public class SnapshotCodecTest {
+public class ScanResultCodecTest {
+
+    private static final ScanResultCodec CODEC = ScanResultCodec.INSTANCE;
 
     private static final String VERSION = "1.1.0";
 
@@ -59,8 +61,8 @@ public class SnapshotCodecTest {
     }
 
     private static ScanResult roundTrip(ScanResult result) throws Exception {
-        SnapshotCodec.Snapshot back =
-                SnapshotCodec.read(SnapshotCodec.write(result, null, VERSION), VERSION);
+        SnapshotEnvelope.Snapshot<ScanResult> back =
+                SnapshotEnvelope.read(CODEC, SnapshotEnvelope.write(CODEC, result, null, VERSION), VERSION);
         return back.result;
     }
 
@@ -135,8 +137,8 @@ public class SnapshotCodecTest {
         // 결과보다 나중에 실패한 스캔. 이 순서라야 "표는 낡았다" 배너가 뜬다.
         ScanFailure failure = new ScanFailure(new Date(1700000100000L), new Date(1700000130000L),
                 "DaoException: 값 집계 쿼리 실패");
-        SnapshotCodec.Snapshot back = SnapshotCodec.read(
-                SnapshotCodec.write(sample(), failure, VERSION), VERSION);
+        SnapshotEnvelope.Snapshot<ScanResult> back = SnapshotEnvelope.read(CODEC, 
+                SnapshotEnvelope.write(CODEC, sample(), failure, VERSION), VERSION);
 
         assertEquals(failure.getStartedAt(), back.failure.getStartedAt());
         assertEquals(failure.getFinishedAt(), back.failure.getFinishedAt());
@@ -149,8 +151,8 @@ public class SnapshotCodecTest {
     public void 결과가_없어도_저장된다() throws Exception {
         // 첫 스캔이 실패한 경우. 결과는 없고 실패만 있다.
         ScanFailure failure = new ScanFailure(new Date(1L), new Date(2L), "boom");
-        SnapshotCodec.Snapshot back = SnapshotCodec.read(
-                SnapshotCodec.write(null, failure, VERSION), VERSION);
+        SnapshotEnvelope.Snapshot<ScanResult> back = SnapshotEnvelope.read(CODEC, 
+                SnapshotEnvelope.write(CODEC, null, failure, VERSION), VERSION);
         assertNull(back.result);
         assertEquals("boom", back.failure.getMessage());
     }
@@ -159,22 +161,24 @@ public class SnapshotCodecTest {
     public void 플러그인_버전이_다르면_버린다() throws Exception {
         // 수집기가 늘어난 새 버전이 옛 스냅샷을 읽으면 그 참조가 통째로 빠진 표가
         // 그려진다 — 없는 정보가 "삭제해도 된다"는 신호로 바뀐다.
-        String json = SnapshotCodec.write(sample(), null, "1.0.2");
-        assertNull(SnapshotCodec.read(json, "1.1.0"));
+        String json = SnapshotEnvelope.write(CODEC, sample(), null, "1.0.2");
+        assertTrue(SnapshotEnvelope.read(CODEC, json, "1.1.0").isRejected());
     }
 
     @Test
     public void 판이_다르거나_비어_있으면_버린다() throws Exception {
-        assertNull(SnapshotCodec.read(null, VERSION));
-        assertNull(SnapshotCodec.read("   ", VERSION));
-        assertNull(SnapshotCodec.read("{\"schema\":999,\"pluginVersion\":\"1.1.0\"}", VERSION));
+        assertNull(SnapshotEnvelope.read(CODEC, null, VERSION));
+        assertNull(SnapshotEnvelope.read(CODEC, "   ", VERSION));
+        assertTrue(SnapshotEnvelope.read(CODEC, "{\"envelope\":1,\"schema\":999,\"pluginVersion\":\"1.1.0\"}", VERSION).isRejected());
+        // 1.3.2 까지의 봉투(envelope 없음)도 버려진다 — 이유가 남는다
+        assertEquals("봉투 판 -1 ≠ 1", SnapshotEnvelope.read(CODEC, "{\"schema\":1,\"pluginVersion\":\"" + VERSION + "\"}", VERSION).rejected);
     }
 
     @Test
     public void 모르는_참조_종류는_그_한_건만_버린다() throws Exception {
-        String json = SnapshotCodec.write(sample(), null, VERSION)
+        String json = SnapshotEnvelope.write(CODEC, sample(), null, VERSION)
                 .replace("\"SCREEN\"", "\"FUTURE_TYPE\"");
-        ScanResult after = SnapshotCodec.read(json, VERSION).result;
+        ScanResult after = SnapshotEnvelope.read(CODEC, json, VERSION).result;
         // 스냅샷 전체를 잃지 않는다. 필드는 그대로 있고 참조 하나만 빠진다.
         assertEquals(2, after.getFields().size());
         assertTrue(after.getField(10001L).getReferences(ReferenceType.SCREEN).isEmpty());

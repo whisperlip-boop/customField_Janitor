@@ -25,6 +25,14 @@ public final class PluginVersion {
     /** 버전을 못 읽었을 때의 값. 이 값이면 스냅샷을 읽지도 쓰지도 않는다. */
     public static final String UNKNOWN = "unknown";
 
+    /** 실제 버전 공급자. 러너가 이걸 받고, 테스트는 고정 문자열을 준다. */
+    public static final VersionSource SOURCE = new VersionSource() {
+        @Override
+        public String current() {
+            return PluginVersion.current();
+        }
+    };
+
     private PluginVersion() {
     }
 

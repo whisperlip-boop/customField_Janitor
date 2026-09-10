@@ -126,7 +126,7 @@ public class FieldsResource {
         if (!AdminGuard.isAdmin()) {
             return forbidden();
         }
-        boolean started = scanService.startScan();
+        boolean started = scanService.start();
         return Response.status(started ? Response.Status.ACCEPTED : Response.Status.CONFLICT)
                 .entity(status(lang))
                 .build();

@@ -20,7 +20,7 @@ import org.apache.log4j.Logger;
  * 이미 provided 로 쓰고 있다. 새로 들이는 것이 없다. 값이 길면 {@code propertytext},
  * 짧으면 {@code propertystring} 에 들어간다 — SAL 이 길이를 보고 고른다(docs/00 33번).
  */
-public final class SnapshotStore {
+public final class SnapshotStore implements SnapshotBackend {
 
     private static final Logger log = Logger.getLogger(SnapshotStore.class);
 
@@ -45,9 +45,18 @@ public final class SnapshotStore {
         /** 저장된 값. 닿았는데 없으면 null. */
         public final String json;
 
-        Loaded(boolean reachable, String json) {
+        private Loaded(boolean reachable, String json) {
             this.reachable = reachable;
             this.json = json;
+        }
+
+        public static Loaded unreachable() {
+            return new Loaded(false, null);
+        }
+
+        /** 닿았다. {@code json} 이 null 이면 "아직 저장된 것이 없다". */
+        public static Loaded of(String json) {
+            return new Loaded(true, json);
         }
 
         public boolean isEmpty() {
@@ -64,6 +73,8 @@ public final class SnapshotStore {
     /**
      * SAL 의 설정 저장소. 플러그인 컨테이너에 주입하지 않고 OSGi 서비스로 직접 꺼낸다
      * ({@code Atlassian-Plugin-Key} 가 설정돼 있어 XML component-import 를 못 쓴다).
+     * 8.13 과 8.17.1 모두 이 경로로 얻어졌다(docs/01 6번) — 한때 두었던
+     * {@code getComponent} 폴백은 한 번도 쓰이지 않아 지웠다.
      *
      * @return 못 얻으면 null. 스냅샷은 부가 기능이므로 없다고 스캔을 막지 않는다.
      */
@@ -71,28 +82,13 @@ public final class SnapshotStore {
         PluginSettingsFactory factory =
                 ComponentAccessor.getOSGiComponentInstanceOfType(PluginSettingsFactory.class);
         if (factory == null) {
-            // 8.13 과 8.17.1 에서 어느 경로가 통하는지 실측으로 정하기 전까지 둘 다 본다.
-            factory = ComponentAccessor.getComponent(PluginSettingsFactory.class);
-            if (factory != null) {
-                // WARN 으로 남긴다. 이 인스턴스들은 우리 패키지의 INFO 를 버린다(실측)
-                // — INFO 로 두면 "어느 경로로 얻었나"를 영영 못 본다. 8.13 에서는
-                // OSGi 경로가 통했으므로 이 줄이 보이면 8.17.1 이 다르다는 뜻이다.
-                log.warn("PluginSettingsFactory 를 getComponent 경로로 얻었다 (OSGi 경로 실패)");
-            }
-        }
-        if (factory == null) {
             log.warn("PluginSettingsFactory 를 못 얻었다 — 스냅샷 저장을 건너뛴다");
             return null;
         }
         return factory.createGlobalSettings();
     }
 
-    /**
-     * 저장.
-     *
-     * @return 실제로 썼으면 true. 실패는 로그만 남기고 삼킨다 — 스냅샷 때문에 스캔이
-     *         죽으면 안 된다.
-     */
+    @Override
     public boolean save(String json) {
         try {
             PluginSettings settings = settings();
@@ -107,18 +103,18 @@ public final class SnapshotStore {
         }
     }
 
-    /** 읽기. 저장소에 못 닿으면 {@code reachable=false} 다 — 그때는 잠그지 말고 다시 읽어야 한다. */
+    @Override
     public Loaded load() {
         try {
             PluginSettings settings = settings();
             if (settings == null) {
-                return new Loaded(false, null);
+                return Loaded.unreachable();
             }
             Object value = settings.get(key);
-            return new Loaded(true, value instanceof String ? (String) value : null);
+            return Loaded.of(value instanceof String ? (String) value : null);
         } catch (Throwable t) {
             log.warn("스냅샷 읽기 실패", t);
-            return new Loaded(false, null);
+            return Loaded.unreachable();
         }
     }
 }

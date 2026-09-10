@@ -1,6 +1,6 @@
 package com.bskim.jira.janitor.fields.rest.dto;
 
-import com.bskim.jira.janitor.fields.dao.DeepScanDao;
+import com.bskim.jira.janitor.fields.deep.DeepScanPolicy;
 import com.bskim.jira.janitor.fields.deep.DeepScanProgress;
 import com.bskim.jira.janitor.fields.deep.DeepScanResult;
 import com.bskim.jira.janitor.fields.scan.ScanFailure;
@@ -24,7 +24,7 @@ public class DeepStatusDto {
     public int fieldCount;
     public int tablesScanned;
     public long rowsCounted;
-    public List<String> skippedPrefixes = new ArrayList<String>(new TreeSet<String>(DeepScanDao.SKIPPED_PREFIXES));
+    public List<String> skippedPrefixes = new ArrayList<String>(new TreeSet<String>(DeepScanPolicy.SKIPPED_PREFIXES));
     public int problemCount;
 
     /** 마지막 심층 스캔의 실패. 스냅샷과 함께 복원된다 — 화면 배너와 같은 값. */
