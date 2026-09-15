@@ -9,6 +9,7 @@ import com.atlassian.jira.issue.issuetype.IssueType;
 import com.atlassian.jira.project.Project;
 import com.atlassian.jira.project.ProjectManager;
 import com.atlassian.jira.workflow.JiraWorkflow;
+import com.atlassian.jira.workflow.WorkflowActionsBean;
 import com.atlassian.jira.workflow.WorkflowManager;
 import com.bskim.jira.janitor.fields.model.FieldUsage;
 import com.bskim.jira.janitor.fields.model.Reference;
@@ -31,6 +32,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -51,8 +53,11 @@ import java.util.Set;
  *         unconditionalResult / conditionalResults[*] 의 validators·pre·postFunctions
  *         restriction의 conditions (중첩 ConditionsDescriptor 재귀)
  *   스텝: preFunctions, postFunctions
- *   전이 화면: action.getView() → 그 화면에 놓인 필드
+ *   전이 화면: Jira 의 해석기(WorkflowActionsBean)로 전이 → 화면 ID → 그 화면의 필드
  * </pre>
+ *
+ * <p>전이 화면의 화면 ID 는 {@code action.getView()} 가 아니다 — {@link #screenIdOf} 참고
+ * (실측 42번).
  *
  * <p>전이 화면에서 온 참조는 위험으로 세지 않는다. 근거는 {@link Reference} 주석 참고.
  */
@@ -90,7 +95,9 @@ public class WorkflowCollector implements ReferenceCollector {
             }
             try {
                 collectWorkflow(context, workflow, projects);
-            } catch (RuntimeException e) {
+            } catch (Throwable e) {
+                // RuntimeException 만 잡으면 8.13 컴파일 → 8.17.1 실행의 어긋남이 내는
+                // LinkageError 가 빠져나가 뒤에 남은 워크플로를 전부 건너뛴다(CLAUDE.md 함정).
                 context.addProblem("workflow", workflow.getName(), e);
             }
         }
@@ -98,13 +105,18 @@ public class WorkflowCollector implements ReferenceCollector {
 
     private void collectWorkflow(ScanContext context, JiraWorkflow workflow, List<String> projects) {
         for (ActionDescriptor action : workflow.getAllActions()) {
-            String where = "transition: " + action.getName();
+            String where = whereOf(action);
 
-            // 전이 화면에 놓인 필드
-            List<String> screenFieldIds = screenFieldsFor(action.getView());
-            for (String fieldId : screenFieldIds) {
-                add(context, context.byFieldId(fieldId), workflow, where, KEY_TRANSITION_SCREEN, projects, false);
+            // 전이 화면에 놓인 필드. 해석 실패는 이 전이 한 건만 "확인 불가"로 남기고
+            // 조건/검증기/함수 스캔은 그대로 진행한다(보조 재료, 규칙 7).
+            Long screenId;
+            try {
+                screenId = screenIdOf(action);
+            } catch (RuntimeException e) {
+                context.addProblem("workflowScreen", workflow.getName() + " / " + where, e);
+                screenId = null;
             }
+            addScreenFields(context, workflow, screenId, where, projects);
 
             scanValidators(context, workflow, action.getValidators(), where, projects);
             scanFunctions(context, workflow, action.getPreFunctions(), where, KEY_PRE_FUNCTION, projects);
@@ -137,6 +149,32 @@ public class WorkflowCollector implements ReferenceCollector {
                 scanFunctions(context, workflow, step.getPostFunctions(), where, KEY_STEP_FUNCTION, projects);
             }
         }
+    }
+
+    private void addScreenFields(ScanContext context, JiraWorkflow workflow, Long screenId,
+                                 String where, List<String> projects) {
+        if (screenId == null) {
+            return;
+        }
+        List<String> fieldIds = fieldIdsByScreenId.get(screenId);
+        if (fieldIds == null) {
+            return;
+        }
+        for (String fieldId : fieldIds) {
+            add(context, context.byFieldId(fieldId), workflow, where, KEY_TRANSITION_SCREEN, projects, false);
+        }
+    }
+
+    /**
+     * 참조의 "어디서" 문자열. <b>전이 ID를 함께 넣는다</b> — 한 워크플로 안에 같은 이름의
+     * 전이가 둘 있는 것이 흔하기 때문이다(실측: {@code classic default workflow} 의
+     * "Close Issue" 는 id 2·701 둘이고 각각 다른 화면을 쓴다). 이름만 쓰면 두 전이의
+     * 참조가 {@link Reference} 의 중복 제거로 한 줄에 합쳐져, 실제로는 두 군데가 깨지는데
+     * 상세 화면에는 한 군데만 보인다. "UI에는 항상 ID를 함께 노출한다"(CLAUDE.md 규칙 2)와도
+     * 같은 방향이다.
+     */
+    static String whereOf(ActionDescriptor action) {
+        return "transition: " + action.getName() + " (#" + action.getId() + ")";
     }
 
     private void scanResult(ScanContext context, JiraWorkflow workflow, ResultDescriptor result,
@@ -279,6 +317,9 @@ public class WorkflowCollector implements ReferenceCollector {
         Map<Long, List<String>> index = new HashMap<Long, List<String>>();
         FieldScreenManager screenManager = ComponentAccessor.getFieldScreenManager();
         for (FieldScreen screen : screenManager.getFieldScreens()) {
+            if (screen == null || screen.getId() == null) {
+                continue;
+            }
             List<String> fieldIds = new ArrayList<String>();
             for (FieldScreenTab tab : screen.getTabs()) {
                 for (FieldScreenLayoutItem item : tab.getFieldScreenLayoutItems()) {
@@ -292,18 +333,39 @@ public class WorkflowCollector implements ReferenceCollector {
         return index;
     }
 
-    private List<String> screenFieldsFor(String view) {
-        if (view == null || view.trim().isEmpty()) {
-            return java.util.Collections.emptyList();
+    /**
+     * 이 전이가 쓰는 화면 ID. 화면이 없으면 null.
+     *
+     * <p><b>{@code getView()} 는 화면 ID 가 아니다.</b> 거기 들어 있는 것은 뷰 이름
+     * ({@code resolveissue} / {@code commentassign} / {@code fieldscreen})이라
+     * {@code Long.parseLong} 이 언제나 실패한다. v1.0.0~v1.4.1 은 그 실패를 "예외적인 경우"로
+     * 보고 넘겨서 전이 화면 참조를 <b>한 건도</b> 잡지 못했다(실측 42번). 라벨까지 뒤집히지는
+     * 않았다 — {@code ScreenCollector} 가 전이 전용 화면도 훑으므로 {@code SCREEN} 참조는
+     * 남는다. 다만 관리자는 "어느 워크플로의 어느 전이가 그 화면을 쓰는지"를 통째로 못 봤고,
+     * 전이 전용 화면은 프로젝트 체인이 비어 있어 "아무 데도 안 걸린 필드"처럼 읽혔다.
+     *
+     * <p>해석은 직접 하지 않고 <b>Jira 자신의 해석기</b>
+     * {@link WorkflowActionsBean#getFieldScreenIdForView} 에 맡긴다. 전이 대화상자를 그릴 때
+     * Jira 가 쓰는 바로 그 규칙이라, 우리가 세는 것과 Jira 가 보여주는 것이 어긋날 수 없다:
+     * <ul>
+     *   <li>뷰가 비어 있으면 화면 없음.</li>
+     *   <li>옛 이름 {@code commentassign} → 2, {@code resolveissue} → 3. <b>메타보다 먼저</b>다.</li>
+     *   <li>그 외 뷰({@code fieldscreen})는 메타 속성 {@code jira.fieldscreen.id} 를 읽는다.</li>
+     *   <li>메타도 없으면 {@code IllegalArgumentException}, 메타가 숫자가 아니면
+     *       {@code NumberFormatException} — 호출부가 그 전이 한 건만 "확인 불가"로 남긴다.
+     *       Jira 도 그 전이의 화면을 못 그리므로 "화면 참조 0"이 맞다.</li>
+     * </ul>
+     * 처음엔 메타 → 숫자 뷰 → {@code getActionsForScreen} 세 경로를 직접 짰는데, 우선순위가
+     * Jira 와 달랐고(메타를 먼저 봤다) 숫자 뷰는 Jira 가 받지도 않는 형식이었다(리뷰 지적).
+     * 이 메서드는 {@code FieldScreenManager} 를 건드리지 않아 스캔 스레드에서 안전하고
+     * 단위 테스트가 직접 부른다(그래서 package-private).
+     */
+    static Long screenIdOf(ActionDescriptor action) {
+        if (action == null) {
+            return null;
         }
-        try {
-            List<String> fieldIds = fieldIdsByScreenId.get(Long.parseLong(view.trim()));
-            return fieldIds == null ? java.util.Collections.<String>emptyList() : fieldIds;
-        } catch (NumberFormatException e) {
-            // 전이 화면이 숫자 ID가 아닌 형태(뷰 이름)로 들어간 경우. 화면 참조는 못 잡지만
-            // 조건/검증기/함수 스캔은 그대로 진행된다.
-            return java.util.Collections.emptyList();
-        }
+        Optional<Long> id = new WorkflowActionsBean().getFieldScreenIdForView(action);
+        return id.isPresent() ? id.get() : null;
     }
 
     /**

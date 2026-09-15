@@ -154,13 +154,37 @@ def target_screens():
     return _screen_cache
 
 
+def transition_screens():
+    """전이에서만 쓰이는 화면 ID들 (픽스처 K용).
+
+    Jira 가 기본으로 갖고 있는 "Workflow Screen" / "Resolve Issue Screen" 이다. 둘 다
+    이슈타입 화면 스킴에는 없고 오직 워크플로 전이의 화면으로만 쓰인다 — 그래서
+    "전이 화면 참조" 경로를 격리해서 볼 수 있는 유일한 자리다(실측 42번).
+
+    기본 워크플로(`jira`, `classic default workflow`)가 이 화면들을 옛 형식
+    (`view="resolveissue"`, 숫자 ID 도 `jira.fieldscreen.id` 메타도 없다)으로 가리키므로,
+    Jira 해석기(`WorkflowActionsBean`)의 옛 이름 → 화면 매핑이 실제로 검증된다.
+    """
+    code, screens = call("GET", "/rest/api/2/screens")
+    if code != 200:
+        raise SystemExit("화면 목록 조회 실패: %s %s" % (code, screens))
+    wanted = ("Workflow Screen", "Resolve Issue Screen")
+    picked = [s["id"] for s in screens if s.get("name") in wanted]
+    if not picked:
+        print("  전이 전용 화면을 못 찾았다 — 픽스처 K 는 건너뛴다")
+    return picked
+
+
 def add_to_screens(field_id, screen_ids=None):
-    for screen_id in (screen_ids or target_screens()):
+    # None 만 기본값이다. 빈 리스트를 `or` 로 넘기면 프로젝트 화면으로 떨어져서
+    # "화면을 못 찾아 건너뛴다"고 찍어 놓고 정반대로 얹는다. 픽스처가 조용히
+    # 다른 것을 만드는 쪽이 제일 나쁘다.
+    for screen_id in (target_screens() if screen_ids is None else screen_ids):
         add_to_screen(field_id, screen_id)
 
 
 def remove_from_screens(field_id, screen_ids=None):
-    for screen_id in (screen_ids or target_screens()):
+    for screen_id in (target_screens() if screen_ids is None else screen_ids):
         remove_from_screen(field_id, screen_id)
 
 
@@ -297,6 +321,11 @@ def main():
                      LABELS_TYPE, LABELS_SEARCHER)
     add_to_screens(i)
 
+    print("필드 K (전이 화면 참조 기대): 전이에서만 쓰이는 화면에만 건다")
+    k = ensure_field("Janitor Fixture K transition", "expected: transition screen references")
+    k_screens = transition_screens()
+    add_to_screens(k, k_screens)
+
     print("두 번째 사용자 준비 (픽스처 H용)")
     second = ensure_second_user()
 
@@ -399,6 +428,9 @@ def main():
 
     print("\n완료. 이제 /secure/admin/CustomFieldUsage.jspa 에서 스캔하고 상태를 확인할 것.")
     print("필드 E의 워크플로 참조는 tools/make-workflow-fixture.sh 로 따로 만든다.")
+    if k_screens:
+        print("필드 K 는 WORKFLOW 참조가 나와야 한다 — 기본 워크플로(jira · classic default workflow)가"
+              " 둘 다 있으면 8건(전이 4 × 워크플로 2). v1.4.1 은 0건이었다.")
 
 
 if __name__ == "__main__":

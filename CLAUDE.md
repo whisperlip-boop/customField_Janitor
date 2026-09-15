@@ -171,6 +171,20 @@ IntersectionObserver 로 현재 위치를 강조하고, 없으면 색인은 그�
   condition을 주입할 컨테이너를 만들기 위한 것이다 — 지우면 web-item이 비활성화된다.
 - **`CustomFieldManager.getCustomFieldObjects()`는 타입 제공 앱이 죽은 필드를 빠뜨린다**
   (실측: 11개 중 5개만). 존재의 근거는 `customfield` 테이블이다.
+- **`ActionDescriptor.getView()`는 전이 화면 ID가 아니다.** 뷰 이름(`resolveissue`,
+  `commentassign`, `fieldscreen`)이라 `Long.parseLong`이 언제나 실패한다. 옛 이름 둘은
+  화면 2·3에 고정 매핑이고, 요즘 형식은 메타 속성 `jira.fieldscreen.id`에 ID가 있다.
+  **직접 풀지 말고 `WorkflowActionsBean.getFieldScreenIdForView(action)`를 쓴다** —
+  jira-api에 있는 Jira 자신의 해석기라 우리가 세는 것과 Jira가 그리는 것이 어긋날 수 없다.
+  우선순위는 "옛 이름 → 메타"이고 뷰가 비면 화면 없음. v1.0.0~v1.4.1은 숫자 파싱만 하고
+  실패를 삼켜 전이 화면 참조를 한 건도 못 잡았다. 고칠 때도 처음엔 메타→숫자 뷰→
+  `getActionsForScreen` 세 경로를 직접 짰다가 리뷰에서 우선순위가 Jira와 다르고 숫자 뷰는
+  Jira가 받지도 않는 형식임이 드러나 해석기 호출 하나로 바꿨다(실측 42번).
+- **한 워크플로 안에 같은 이름의 전이가 둘 있다.** `classic default workflow`의
+  "Close Issue"는 id 2·701이고 서로 다른 화면을 쓴다. 참조의 "어디서" 문자열에 전이 ID를
+  넣지 않으면 `Reference`의 중복 제거가 둘을 한 줄로 합쳐, 실제로는 두 군데가 깨지는데
+  상세에는 한 군데만 보인다. `WorkflowCollector.whereOf()`가 그 입구다 — 전이 화면의 두
+  경로가 한 줄로 합쳐지려면 양쪽이 이걸 써야 한다.
 - **`ActionDescriptor.getPostFunctions()`는 Jira UI의 "후처리 함수"가 아니다.**
   그건 `getUnconditionalResult()` / `getConditionalResults()`의 post-functions에 있다.
   여기를 빼면 가장 흔한 참조를 통째로 놓친다.

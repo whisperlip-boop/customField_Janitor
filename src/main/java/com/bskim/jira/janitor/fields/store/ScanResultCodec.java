@@ -27,8 +27,10 @@ public final class ScanResultCodec implements ResultCodec<ScanResult> {
     /**
      * 결과 본문의 판. 수집·판정의 뜻이 바뀌면 올린다(형식이 같아도).
      * 2 — "확인 불가" 항목이 완성된 문장 대신 i18n 키와 인자를 담는다(docs/00 41번).
+     * 3 — 전이 화면 참조를 실제로 수집한다. 그전 판은 한 건도 없었고, 워크플로 참조의
+     *     "어디서" 문자열에 전이 ID 가 붙었다(docs/00 42번).
      */
-    public static final int SCHEMA = 2;
+    public static final int SCHEMA = 3;
 
     public static final ScanResultCodec INSTANCE = new ScanResultCodec();
 
