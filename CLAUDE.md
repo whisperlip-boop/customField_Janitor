@@ -16,6 +16,11 @@
 - 컴파일 대상: jira-api **8.13.0** (운영 타깃은 8.17.1)
 - 테스트 인스턴스: docker Jira 8.13.0 + PostgreSQL (`schema-name=public`)
 - 오프라인 빌드 가능(`atlas-mvn -o`). 단 최초 1회는 온라인이 필요하다.
+- 산출물은 `customField_janitor-<버전>.jar` 이다. artifactId 는 `janitor` 인데 그 이름짜리
+  jar 이 형제 저장소에서도 나와 Downloads 폴더에서 구분이 안 됐다 — pom 의
+  `<build><finalName>` 로 파일 이름만 바꿨다. **artifactId 와 plugin key 는 그대로다**
+  (규칙 6). `Bundle-SymbolicName` 은 plugin key 에서 나오므로 영향이 없다(실측: 이름을
+  바꾼 jar 이 UPM 에서 같은 앱의 업그레이드로 붙는다).
 
 **인스턴스 주소·계정은 저장소에 적지 않는다.** 아래 세 환경변수로 넘긴다.
 스크립트도 전부 이 규약을 따른다.

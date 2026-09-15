@@ -15,7 +15,10 @@ DOWNLOADS="${DOWNLOADS:-}"
 
 /opt/atlassian-plugin-sdk/bin/atlas-mvn -B clean package "$@"
 
-JAR="$(ls -t target/*.jar | head -1)"
+# 이름으로 집는다. `ls -t target/*.jar | head -1` 은 test-jar 같은 부산물이
+# 생기면 엉뚱한 것을 집는다.
+JAR="$(ls -t target/customField_janitor-*.jar 2>/dev/null | grep -v -- '-tests\.jar$' | head -1)"
+[ -n "$JAR" ] || { echo "산출물이 없다. 먼저 빌드할 것 (target/customField_janitor-*.jar)" >&2; exit 1; }
 cp "$JAR" "$DOWNLOADS/"
 echo
 echo "빌드 완료: $JAR"

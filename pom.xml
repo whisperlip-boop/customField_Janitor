@@ -87,6 +87,12 @@
     </dependencies>
 
     <build>
+        <!-- 산출물 이름을 artifactId(janitor) 가 아니라 저장소 이름으로 낸다.
+             "janitor" 짜리 jar 이 여러 저장소에서 나와 Downloads 폴더에서 구분이
+             안 됐다. 바꾸는 것은 파일 이름뿐이다 — 메이븐 좌표(groupId:artifactId)와
+             plugin key(com.bskim.jira.janitor) 는 그대로다. plugin key 는
+             절대 바꾸지 않는다(CLAUDE.md 규칙 6). -->
+        <finalName>customField_janitor-${project.version}</finalName>
         <plugins>
             <plugin>
                 <groupId>com.atlassian.maven.plugins</groupId>

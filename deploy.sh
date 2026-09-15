@@ -13,7 +13,10 @@ USER="${JIRA_USER:-admin}"
 PASS="${JIRA_PASS:?JIRA_PASS 환경변수에 관리자 비밀번호를 넣어야 한다}"
 KEY="com.bskim.jira.janitor"
 
-JAR="$(ls -t target/*.jar | head -1)"
+# 이름으로 집는다. `ls -t target/*.jar | head -1` 은 test-jar 같은 부산물이
+# 생기면 엉뚱한 것을 집는다.
+JAR="$(ls -t target/customField_janitor-*.jar 2>/dev/null | grep -v -- '-tests\.jar$' | head -1)"
+[ -n "$JAR" ] || { echo "산출물이 없다. 먼저 빌드할 것 (target/customField_janitor-*.jar)" >&2; exit 1; }
 echo "업로드 대상: $JAR → $BASE"
 
 # UPM은 업로드 요청마다 일회성 토큰을 요구한다.
